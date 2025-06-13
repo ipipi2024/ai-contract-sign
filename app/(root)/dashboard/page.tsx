@@ -133,15 +133,15 @@ export default function DashboardContractsView() {
   // Show loading state while checking authentication
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
-      <div className="animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="animate-pulse p-6 sm:p-8 lg:p-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div key={i} className="h-28 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="h-72 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <div className="h-72 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
         </div>
       </div>
     );
@@ -155,11 +155,11 @@ export default function DashboardContractsView() {
   // Show error state if there was an error
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+      <div className="text-center py-16">
+        <p className="text-red-600 dark:text-red-400 mb-6">{error}</p>
         <button
           onClick={fetchContractStats}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
           Try Again
         </button>
@@ -168,10 +168,10 @@ export default function DashboardContractsView() {
   }
 
   return (
-    <div>
+    <div className="p-6 sm:p-8 lg:p-10">
       {/* Welcome message with user name */}
       {session?.user?.name && (
-        <div className="mb-6">
+        <div className="mb-8">
           <h2 className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
             Welcome back, {session.user.name}!
           </h2>
@@ -182,7 +182,7 @@ export default function DashboardContractsView() {
       )}
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div 
           className="rounded-lg p-6"
           style={{ 
@@ -198,7 +198,7 @@ export default function DashboardContractsView() {
               >
                 Your Contracts
               </p>
-              <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--foreground)' }}>
+              <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--foreground)' }}>
                 {stats.total}
               </p>
             </div>
@@ -226,7 +226,7 @@ export default function DashboardContractsView() {
               >
                 Completed
               </p>
-              <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--foreground)' }}>
+              <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--foreground)' }}>
                 {stats.completed}
               </p>
             </div>
@@ -253,7 +253,7 @@ export default function DashboardContractsView() {
               >
                 Pending Signature
               </p>
-              <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--foreground)' }}>
+              <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--foreground)' }}>
                 {stats.pending}
               </p>
             </div>
@@ -280,7 +280,7 @@ export default function DashboardContractsView() {
               >
                 Drafts
               </p>
-              <p className="text-2xl font-semibold mt-1" style={{ color: 'var(--foreground)' }}>
+              <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--foreground)' }}>
                 {stats.draft}
               </p>
             </div>
@@ -293,7 +293,7 @@ export default function DashboardContractsView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity */}
         <div 
           className="rounded-lg p-6"
@@ -302,7 +302,7 @@ export default function DashboardContractsView() {
             border: '1px solid rgba(128, 128, 128, 0.2)'
           }}
         >
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
               Recent Activity
             </h3>
@@ -319,12 +319,12 @@ export default function DashboardContractsView() {
               No contracts yet. Create your first contract to get started!
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {stats.recentActivity.map((contract) => (
                 <Link
                   key={contract._id}
                   href={`/contracts/${contract._id}`}
-                  className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="block p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -334,7 +334,7 @@ export default function DashboardContractsView() {
                           {contract.title}
                         </p>
                         <p 
-                          className="text-xs"
+                          className="text-xs mt-1"
                           style={{ color: 'var(--foreground)', opacity: 0.5 }}
                         >
                           {new Date(contract.createdAt).toLocaleDateString()}
@@ -342,7 +342,7 @@ export default function DashboardContractsView() {
                       </div>
                     </div>
                     <span 
-                      className="text-xs px-2 py-1 rounded-full"
+                      className="text-xs px-3 py-1.5 rounded-full"
                       style={{ 
                         backgroundColor: 'rgba(128, 128, 128, 0.1)',
                         color: 'var(--foreground)',
@@ -366,7 +366,7 @@ export default function DashboardContractsView() {
             border: '1px solid rgba(128, 128, 128, 0.2)'
           }}
         >
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
               Awaiting Your Signature
             </h3>
@@ -383,13 +383,13 @@ export default function DashboardContractsView() {
               No contracts awaiting your signature
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {stats.awaitingSignature.map((contract) => (
                 <div
                   key={contract._id}
-                  className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                  className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <p className="font-medium" style={{ color: 'var(--foreground)' }}>
                       {contract.title}
                     </p>
@@ -403,7 +403,7 @@ export default function DashboardContractsView() {
                     </p>
                     <Link
                       href={`/contracts/${contract._id}`}
-                      className="text-sm px-3 py-1 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
+                      className="text-sm px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
                     >
                       Review & Sign
                     </Link>
@@ -413,26 +413,6 @@ export default function DashboardContractsView() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-6 flex gap-4">
-        <Link
-          href="/contracts/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center"
-        >
-          <svg className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-          Create New Contract
-        </Link>
-        <Link
-          href="/contracts"
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
-          style={{ color: 'var(--foreground)' }}
-        >
-          View All Contracts
-        </Link>
       </div>
     </div>
   );
