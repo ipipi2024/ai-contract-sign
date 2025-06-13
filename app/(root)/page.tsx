@@ -50,7 +50,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Why Choose Sherkolit?
+              Why Choose DreamSign?
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
               Our AI-powered platform makes contract creation simple, fast, and reliable
