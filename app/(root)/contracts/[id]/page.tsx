@@ -1,7 +1,5 @@
 // app/contract/page.js
 
-
-
 // Have a list of contracts to choose from, depending on the field you're working with
 
 "use client";
@@ -11,8 +9,6 @@ import { useParams, useRouter } from 'next/navigation';
 import ContractBlock from "@/components/ContractBlock";
 import SignatureModal from "@/components/SignatureModal";
 import ContractSummary from "@/components/ContractSummary";
-
-
 
 interface Contract {
   _id: string;
@@ -55,7 +51,7 @@ const SkeletonBlock = () => (
 );
 
 const SkeletonSummary = () => (
-  <div className="bg-white rounded-lg p-6 shadow-md animate-pulse">
+  <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md animate-pulse">
     <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
     <div className="space-y-3">
       <div className="h-4 bg-gray-200 rounded w-full"></div>
@@ -67,7 +63,7 @@ const SkeletonSummary = () => (
 );
 
 const SkeletonSendPanel = () => (
-  <div className="bg-white rounded-lg p-6 shadow-md animate-pulse">
+  <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md animate-pulse">
     <div className="h-12 bg-gray-200 rounded mb-3"></div>
     <div className="h-12 bg-gray-200 rounded"></div>
   </div>
@@ -84,7 +80,6 @@ const LoadingSpinner = ({ size = "w-5 h-5" }: { size?: string }) => {
   );
 };
 
-
 export default function ContractPage() {
   const params = useParams();
   const router = useRouter();
@@ -96,10 +91,23 @@ export default function ContractPage() {
   const [contractRegenPrompt, setContractRegenPrompt] = useState("");
   const [isRegeneratingContract, setIsRegeneratingContract] = useState(false);
   const [isSendingContract, setIsSendingContract] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [activeTab, setActiveTab] = useState<'contract' | 'info'>('contract');
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     fetchContract();
+  }, []);
+
+  // Handle responsive view detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobileView(window.innerWidth < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   const fetchContract = async () => {
@@ -127,7 +135,6 @@ export default function ContractPage() {
   };
 
   // Handler to update a single block after regeneration
-  //XXX: Regenerateblock modal should allow you to edit the TEXT ITSELF of the block OR regenerate!!!
   const handleRegenerateBlock = async (blockIndex: number, userInstructions: string) => {
     if (!contractJson) return;
     try {
@@ -180,9 +187,7 @@ export default function ContractPage() {
     });
   };
 
-  // Handler to update a signature field:
-  // First opens SignatureModal to capture a signature
-  // Takes the resulting image and saves it as a string in the img_url field of the signature
+  // Handler to update a signature field
   const handleSignatureSave = (blockIndex: number, signatureIndex: number, img_url: string) => {
     console.log('handleSignatureSave called:', { blockIndex, signatureIndex, hasImgUrl: !!img_url });
     
@@ -252,7 +257,6 @@ export default function ContractPage() {
     }
   };
 
-  
   // Handler to send contract via email
   const [recipientEmail, setRecipientEmail] = useState("");
   const handleSendContract = async () => {
@@ -288,15 +292,40 @@ export default function ContractPage() {
     }
   };
 
+  // Mobile tab navigation
+  const MobileTabNav = () => (
+    <div className="flex border-b border-gray-200 mb-4 lg:hidden">
+      <button
+        onClick={() => setActiveTab('contract')}
+        className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+          activeTab === 'contract'
+            ? 'text-blue-600 border-b-2 border-blue-600'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Contract
+      </button>
+      <button
+        onClick={() => setActiveTab('info')}
+        className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+          activeTab === 'info'
+            ? 'text-blue-600 border-b-2 border-blue-600'
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Information & Send
+      </button>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] bg-gray-50">
       {isLoading || !contractJson ? (
-        <div className="flex flex-1 px-8 py-6 space-x-6 h-0">
-          {/* Left: Contract Blocks Skeleton */}
-          <div className="w-7/12 flex-1 overflow-y-auto pb-4 pr-2">
+        <div className="flex flex-1 px-4 sm:px-6 lg:px-8 py-4 lg:py-6 lg:space-x-6 h-0">
+          {/* Desktop: Side by side, Mobile: Stacked */}
+          <div className="w-full lg:w-7/12 flex-1 overflow-y-auto pb-4 lg:pr-2">
             <div className="mb-6">
-              <div className="h-8 bg-gray-200 rounded w-64 mb-4 animate-pulse"></div>
+              <div className="h-8 bg-gray-200 rounded w-48 sm:w-64 mb-4 animate-pulse"></div>
               <div className="text-sm text-gray-500 mb-4">Generating your contract...</div>
             </div>
             {[...Array(4)].map((_, i) => (
@@ -304,8 +333,8 @@ export default function ContractPage() {
             ))}
           </div>
 
-          {/* Right: Summary + Send Panel Skeleton */}
-          <div className="w-5/12 h-full flex flex-col">
+          {/* Right side - Hidden on mobile during loading */}
+          <div className="hidden lg:block lg:w-5/12 h-full flex flex-col">
             <div className="flex-1 overflow-y-auto">
               <SkeletonSummary />
             </div>
@@ -315,11 +344,14 @@ export default function ContractPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 px-8 py-6 space-x-6 h-0">
-          {/* Left: Contract Blocks + Regeneration */}
-          <div className="w-7/12 flex flex-col h-full">
+        <div className="flex flex-col lg:flex-row flex-1 px-4 sm:px-6 lg:px-8 py-4 lg:py-6 lg:space-x-6 min-h-0 overflow-hidden">
+          {/* Mobile tab navigation */}
+          {isMobileView && <MobileTabNav />}
+
+          {/* Left: Contract Blocks */}
+          <div className={`${isMobileView && activeTab !== 'contract' ? 'hidden' : ''} w-full lg:w-7/12 flex flex-col h-full`}>
             {/* Contract Blocks - Scrollable */}
-            <div className="flex-1 overflow-y-auto pb-4 pr-2">
+            <div className="flex-1 overflow-y-auto pb-4 lg:pr-2">
               {contractJson?.blocks?.map((block, i) => (
                 <ContractBlock
                   key={i}
@@ -327,22 +359,21 @@ export default function ContractPage() {
                   blockIndex={i}
                   currentParty={currentParty}
                   onSignatureClick={(signatureIndex: number) => {
-                  console.log('Signature click received:', { blockIndex: i, signatureIndex, totalSignatures: block.signatures.length });
-                  
-                  const signature = block.signatures[signatureIndex];
-                  if (!signature) {
-                    console.error('No signature found at index:', signatureIndex, 'Available signatures:', block.signatures.length);
-                    return;
-                  }
-                  
-                  if (signature.party !== currentParty) {
-                    console.log('Wrong party - signature belongs to:', signature.party, 'but current party is:', currentParty);
-                    return;
-                  }
-                  
-                  setShowSignatureFor({ blockIndex: i, signatureIndex });
-                }}
-                  
+                    console.log('Signature click received:', { blockIndex: i, signatureIndex, totalSignatures: block.signatures.length });
+                    
+                    const signature = block.signatures[signatureIndex];
+                    if (!signature) {
+                      console.error('No signature found at index:', signatureIndex, 'Available signatures:', block.signatures.length);
+                      return;
+                    }
+                    
+                    if (signature.party !== currentParty) {
+                      console.log('Wrong party - signature belongs to:', signature.party, 'but current party is:', currentParty);
+                      return;
+                    }
+                    
+                    setShowSignatureFor({ blockIndex: i, signatureIndex });
+                  }}
                   onRegenerate={(userInstructions: string) =>
                     handleRegenerateBlock(i, userInstructions)
                   }
@@ -372,35 +403,35 @@ export default function ContractPage() {
             )}
           </div>
 
-          {/* Right: PREVIOUSLY A SUMMARY and now a list of unknowns + Send Panel */}
-          <div className="w-5/12 h-full flex flex-col">
-            <div className="flex-1 bg-white rounded-lg p-6 shadow-md flex flex-col">
+          {/* Right: Info + Send Panel */}
+          <div className={`${isMobileView && activeTab !== 'info' ? 'hidden' : ''} w-full lg:w-5/12 h-full flex flex-col space-y-4`}>
+            <div className="flex-1 bg-white rounded-lg p-4 sm:p-6 shadow-md flex flex-col min-h-0">
               {/* Suggested Information - Scrollable */}
               <div className="flex-1 overflow-y-auto">
                 <h2 className="text-lg font-semibold mb-4">Missing Information</h2>
                 <ul className="list-disc pl-4 space-y-2 mb-4">
                   {contractJson?.unknowns?.map((unknown, i) => (
-                    <li key={i} className="text-gray-700">{unknown}</li>
-                  )) || <li className="text-gray-500">No missing information</li>}
+                    <li key={i} className="text-gray-700 text-sm sm:text-base">{unknown}</li>
+                  )) || <li className="text-gray-500 text-sm sm:text-base">No missing information</li>}
                 </ul>
                 
                 {/* AI Assessment */}
                 {contractJson?.assessment && (
-                  <div className="p-4 bg-gray-50">
-                    <p className="text-sm text-gray-700">{contractJson.assessment}</p>
+                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-gray-700">{contractJson.assessment}</p>
                   </div>
                 )}
               </div>
 
               {/* Regenerate Contract - Fixed at Bottom */}
-              <div className="flex-shrink-0 pt-4 mt-4">
-                <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 pt-4 mt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                   <input
                     type="text"
                     value={contractRegenPrompt}
                     onChange={(e) => setContractRegenPrompt(e.target.value)}
                     placeholder="Regenerate entire contract..."
-                    className="flex-1 p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="flex-1 p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 text-sm sm:text-base"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         handleContractRegeneration();
@@ -413,7 +444,7 @@ export default function ContractPage() {
                       handleContractRegeneration();
                     }}
                     disabled={isRegeneratingContract}
-                    className={`p-4 rounded-md transition ${
+                    className={`p-3 sm:p-4 rounded-md transition ${
                       isRegeneratingContract 
                         ? 'bg-gray-900 cursor-not-allowed' 
                         : 'bg-black hover:bg-gray-900'
@@ -422,9 +453,9 @@ export default function ContractPage() {
                     {(() => {
                       console.log('🔄 Regenerate button render - isRegeneratingContract:', isRegeneratingContract);
                       return isRegeneratingContract ? (
-                        <LoadingSpinner />
+                        <LoadingSpinner size="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
-                        <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
                         </svg>
                       );
@@ -435,13 +466,13 @@ export default function ContractPage() {
             </div>
 
             {/* Recipient Email Input - Fixed at Bottom */}
-            <div className="mt-4 bg-white rounded-lg p-6 shadow-md">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md flex-shrink-0">
               <input
                 type="email"
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="Recipient Email"
-                className="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 text-sm sm:text-base"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSendContract();
@@ -451,7 +482,7 @@ export default function ContractPage() {
               <button
                 onClick={handleSendContract}
                 disabled={isSendingContract}
-                className={`mt-3 w-full py-3 text-white rounded-md transition flex items-center justify-center ${
+                className={`mt-3 w-full py-3 text-white rounded-md transition flex items-center justify-center text-sm sm:text-base ${
                   isSendingContract 
                     ? 'bg-gray-600 cursor-not-allowed' 
                     : 'bg-black hover:bg-gray-900'
@@ -470,7 +501,6 @@ export default function ContractPage() {
                 })()}
               </button>
             </div>
-            
           </div>
         </div>
       )}
