@@ -93,6 +93,8 @@ export default function ContractPage() {
   const [isSendingContract, setIsSendingContract] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeTab, setActiveTab] = useState<'contract' | 'info'>('contract');
+  const [showPreview, setShowPreview] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
@@ -292,6 +294,129 @@ export default function ContractPage() {
     }
   };
 
+  // Handler to download PDF
+  const handleDownloadPDF = async () => {
+    if (!contractJson || isDownloadingPDF) return;
+    
+    setIsDownloadingPDF(true);
+    try {
+      const response = await fetch(`/api/contracts/${params.id}/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractJson }),
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `contract-${params.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to generate PDF');
+      }
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      alert('Error downloading PDF');
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
+  // Contract Preview Modal
+  const ContractPreviewModal = () => {
+    if (!contractJson) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+          {/* Modal Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Contract Preview</h2>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloadingPDF}
+                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center ${
+                  isDownloadingPDF 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {isDownloadingPDF ? (
+                  <>
+                    <LoadingSpinner size="w-4 h-4" />
+                    <span className="ml-2">Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download PDF
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          {/* Modal Body - Contract Preview */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-3xl mx-auto bg-white shadow-sm border border-gray-200 p-8">
+              {/* Contract Header */}
+              <div className="text-center mb-8 pb-6 border-b-2 border-gray-300">
+                <h1 className="text-2xl font-bold mb-2">CONTRACT</h1>
+                <p className="text-gray-600">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-gray-600">Contract ID: {params.id}</p>
+              </div>
+              
+              {/* Contract Content */}
+              <div className="space-y-6">
+                {contractJson.blocks.map((block, index) => {
+                  let processedText = block.text;
+                  
+                  // Replace underscores with signature placeholders
+                  block.signatures.forEach((signature) => {
+                    const underscorePattern = /_{20}/;
+                    if (signature.img_url && signature.img_url.trim() !== '') {
+                      processedText = processedText.replace(
+                        underscorePattern,
+                        `[Signed: ${signature.party}]`
+                      );
+                    } else {
+                      processedText = processedText.replace(
+                        underscorePattern,
+                        `_______________ (${signature.party})`
+                      );
+                    }
+                  });
+                  
+                  return (
+                    <div key={index} className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {processedText}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Mobile tab navigation
   const MobileTabNav = () => (
     <div className="flex border-b border-gray-200 mb-4 lg:hidden">
@@ -350,6 +475,43 @@ export default function ContractPage() {
 
           {/* Left: Contract Blocks */}
           <div className={`${isMobileView && activeTab !== 'contract' ? 'hidden' : ''} w-full lg:w-7/12 flex flex-col h-full`}>
+            {/* Preview and Download Buttons */}
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => setShowPreview(true)}
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Preview
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloadingPDF}
+                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center ${
+                  isDownloadingPDF 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-black text-white hover:bg-gray-900'
+                }`}
+              >
+                {isDownloadingPDF ? (
+                  <>
+                    <LoadingSpinner size="w-4 h-4" />
+                    <span className="ml-2">Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download PDF
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Contract Blocks - Scrollable */}
             <div className="flex-1 overflow-y-auto pb-4 lg:pr-2">
               {contractJson?.blocks?.map((block, i) => (
@@ -504,6 +666,9 @@ export default function ContractPage() {
           </div>
         </div>
       )}
+
+      {/* Contract Preview Modal */}
+      {showPreview && <ContractPreviewModal />}
     </div>
   );
 }

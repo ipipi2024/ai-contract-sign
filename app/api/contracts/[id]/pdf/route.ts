@@ -44,3 +44,26 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     );
   }
 } 
+
+
+// app/api/contracts/[id]/pdf/route.ts
+
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { contractJson } = await request.json();
+    const pdfBuffer = await generateContractPDF(contractJson, params.id);
+    
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="contract-${params.id}.pdf"`,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
+  }
+}
