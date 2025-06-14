@@ -24,7 +24,7 @@ export default function HomePage() {
               AI-Powered Contract Generation
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Create professional, legally-structured contracts in minutes with Sherkolit's intelligent contract generator. 
+              Create professional, legally-structured contracts in minutes with DreamSign's intelligent contract generator. 
               From service agreements to NDAs, we've got you covered.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
