@@ -67,9 +67,7 @@ export default function NewContractPage() {
           <h1 className="text-3xl font-bold text-gray-900">
             Generate Contract with AI
           </h1>
-          <p className="text-gray-600 mt-2">
-            Simply describe what kind of contract you need, and our AI will generate a professional legal document for you.
-          </p>
+          
         </div>
 
         {/* Form */}
@@ -105,7 +103,7 @@ export default function NewContractPage() {
 
           
 
-          {/* AI Info Box */}
+          {/* Info Box */}
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -127,15 +125,12 @@ export default function NewContractPage() {
                 <h4 className="text-sm font-medium text-purple-900">
                   AI-Powered Contract Generation
                 </h4>
-                <p className="text-sm text-purple-800 mt-1">
-                  Our advanced AI will analyze your description and automatically:
-                </p>
                 <ul className="text-sm text-purple-700 mt-2 list-disc list-inside space-y-1">
-                  <li>Identify the contract type and structure</li>
-                  <li>Extract party information and roles</li>
-                  <li>Generate appropriate legal clauses</li>
-                  <li>Include standard terms and conditions</li>
-                  <li>Add dispute resolution and termination clauses</li>
+                  <li>Identifies the contract type and structure</li>
+                  <li>Extracts party information and roles</li>
+                  <li>Generates appropriate legal clauses</li>
+                  <li>Includes standard terms and conditions</li>
+                  <li>Adds dispute resolution and termination clauses</li>
                 </ul>
               </div>
             </div>

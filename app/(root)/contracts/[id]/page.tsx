@@ -569,24 +569,31 @@ export default function ContractPage() {
           <div className={`${isMobileView && activeTab !== 'info' ? 'hidden' : ''} w-full lg:w-5/12 h-full flex flex-col space-y-4`}>
             <div className="flex-1 bg-white rounded-lg p-4 sm:p-6 shadow-md flex flex-col min-h-0">
               {/* Suggested Information - Scrollable */}
-              <div className="flex-1 overflow-y-auto">
-                <h2 className="text-lg font-semibold mb-4">Missing Information</h2>
-                <ul className="list-disc pl-4 space-y-2 mb-4">
-                  {contractJson?.unknowns?.map((unknown, i) => (
-                    <li key={i} className="text-gray-700 text-sm sm:text-base">{unknown}</li>
-                  )) || <li className="text-gray-500 text-sm sm:text-base">No missing information</li>}
-                </ul>
+              <div className="flex-1 overflow-y-auto pl-4">
+                {contractJson?.unknowns?.length > 0 && (
+                  <>
+                    <h2 className="text-lg font-semibold mb-4">Suggested Information</h2>
+                    <ul className="list-disc pl-4 space-y-2 mb-4">
+                      {contractJson.unknowns.map((unknown, i) => (
+                        <li key={i} className="text-gray-700 text-sm sm:text-base">{unknown}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 
-                {/* AI Assessment */}
-                {contractJson?.assessment && (
+                
+              </div>
+
+              {/* AI Assessment */}
+              {contractJson?.assessment && (
                   <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <h2 className="text-sm font-semibold text-gray-700 mb-2">Contract Assessment</h2>
                     <p className="text-xs sm:text-sm text-gray-700">{contractJson.assessment}</p>
                   </div>
                 )}
-              </div>
 
               {/* Regenerate Contract - Fixed at Bottom */}
-              <div className="flex-shrink-0 pt-4 mt-4 border-t border-gray-200">
+              <div className="flex-shrink-0 pt-4 mt-4 border-gray-200">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                   <input
                     type="text"
