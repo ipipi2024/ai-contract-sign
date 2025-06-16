@@ -31,7 +31,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
   }, [])
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/auth/signin' })
+    signOut({ callbackUrl: '/' })
   }
 
   return (
