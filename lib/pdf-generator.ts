@@ -14,6 +14,10 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
+  assessment: string;
+  title?: string;
+  type?: string;
+  parties?: string[];
 }
 
 export async function generateContractPDF(contractJson: ContractJson, contractId: string): Promise<Buffer> {

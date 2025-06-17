@@ -18,83 +18,82 @@ export default function ContractBlock({
 
   const renderBlockText = () => {
     const text = block.text;
-    const underscorePattern = /_{20}/g; // Matches 20 underscores
     const parts = [];
     let lastIndex = 0;
-    let match;
     let whichSignature = 0;
-
-    // Debug log
-    console.log(`Block ${blockIndex} text analysis:`, {
-      textLength: text.length,
-      signatureCount: block.signatures.length,
-      signatures: block.signatures,
-      underscoreMatches: text.match(underscorePattern)?.length || 0
-    });
+    const underscorePattern = /_{20}/g;
+    let match;
 
     while ((match = underscorePattern.exec(text)) !== null) {
-      if (whichSignature >= block.signatures.length) {
-        console.warn(`No signature found for underscore match at index ${whichSignature}`);
-        break;
-      }
-
-      const signature = block.signatures[whichSignature];
-      const isCurrentParty = signature.party === currentParty;
-      const bgClass = isCurrentParty ? "bg-blue-100 hover:bg-blue-200" : "bg-red-100 hover:bg-red-200";
-      const today = new Date().toLocaleDateString();
-
-      // Add text before the underscores (preserve newlines)
+      // Add text before the signature
       if (match.index > lastIndex) {
-        const textBefore = text.slice(lastIndex, match.index);
         parts.push(
-          <span key={`text_${blockIndex}_${lastIndex}`} className="whitespace-pre-wrap">
-            {textBefore}
+          <span key={`text_${blockIndex}_${whichSignature}`} className="whitespace-pre-wrap">
+            {text.slice(lastIndex, match.index)}
           </span>
         );
       }
-      
-      // Capture the current signature index in a local variable to avoid closure issues
+
+      const signature = block.signatures[whichSignature];
+      const isCurrentParty = signature?.party === currentParty;
+      const bgClass = isCurrentParty ? 'bg-blue-50' : 'bg-red-50';
       const currentSignatureIndex = whichSignature;
-      
+
+      // Create signature field with name, signature, and date lines
       parts.push(
-        <span
+        <div
           key={`signature_${blockIndex}_${whichSignature}`}
-          className={`relative inline-block ${bgClass} rounded px-1 py-0.5 font-mono transition-colors duration-150 ${
-            isCurrentParty ? 'cursor-pointer' : 'cursor-not-allowed'
+          className={`relative inline-block ${bgClass} rounded p-2 font-mono transition-colors duration-150 ${
+            isCurrentParty ? 'cursor-pointer hover:bg-blue-100' : 'cursor-not-allowed'
           }`}
           data-index={whichSignature}
           data-party={signature?.party || "PartyA"}
           onClick={(e) => {
-            e.stopPropagation(); // Prevent parent block click
-            
+            e.stopPropagation();
             if (isCurrentParty) {
-              console.log("Opening signature modal for signature index:", currentSignatureIndex);
               onSignatureClick(currentSignatureIndex);
             }
           }}
         >
-          {signature?.img_url ? (
-            <img 
-              src={signature.img_url} 
-              alt="Signature" 
-              className="inline-block h-12 max-w-64 object-contain"
-            />
-          ) : (
-            match[0] /* Render the actual underscores */
-          )}
-        </span>
+          <div className="space-y-3">
+            <div className="text-md">
+              Name: {signature?.name ? (
+                <span className="font-normal">{signature.name}</span>
+              ) : (
+                <span className="text-gray-400">_______________</span>
+              )}
+            </div>
+            <div className="text-md">
+              Signature: {signature?.img_url ? (
+                <img 
+                  src={signature.img_url} 
+                  alt="Signature" 
+                  className="inline-block h-12 max-w-64 object-contain"
+                />
+              ) : (
+                <span className="text-gray-400">_______________</span>
+              )}
+            </div>
+            <div className="text-md">
+              Date: {signature?.date ? (
+                <span className="font-normal">{signature.date}</span>
+              ) : (
+                <span className="text-gray-400">_______________</span>
+              )}
+            </div>
+          </div>
+        </div>
       );
 
       lastIndex = match.index + match[0].length;
       whichSignature++;
     }
 
-    // Add remaining text (preserve newlines)
+    // Add remaining text
     if (lastIndex < text.length) {
-      const remainingText = text.slice(lastIndex);
       parts.push(
         <span key={`rest_${blockIndex}`} className="whitespace-pre-wrap">
-          {remainingText}
+          {text.slice(lastIndex)}
         </span>
       );
     }

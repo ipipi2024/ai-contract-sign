@@ -26,6 +26,10 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
+  assessment: string;
+  title?: string;
+  type?: string;
+  parties?: string[];
 }
 
 export default function SignContractPage() {
@@ -204,6 +208,7 @@ export default function SignContractPage() {
                     setShowSignatureFor({ blockIndex: i, signatureIndex });
                   }}
                   onRegenerate={() => {}} // Disabled for signing
+                  onManualEdit={() => {}} // Disabled for signing
                 />
               ))}
             </div>

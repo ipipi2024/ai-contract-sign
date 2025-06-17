@@ -19,6 +19,8 @@ interface Contract {
 interface Signature {
   party: string;
   img_url: string;
+  name?: string;
+  date?: string;
   index: number; // index of the signature in the block
 }
 
@@ -32,6 +34,44 @@ interface ContractJson {
   unknowns: string[];
   assessment?: string;
 }
+
+interface ErrorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+}
+
+const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-gray-600 mb-6">{message}</p>
+        <div className="flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Skeleton loader components
 const SkeletonBlock = () => (
@@ -96,6 +136,7 @@ export default function ContractPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const hasFetchedRef = useRef(false);
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     fetchContract();
@@ -155,23 +196,31 @@ export default function ContractPage() {
       if (!res.ok) {
         const errorData = await res.json();
         console.error('API Error:', errorData);
-        alert(`Error regenerating block: ${errorData.error || 'Unknown error'}`);
+        setError({
+          title: "Block Regeneration Failed",
+          message: errorData.error || "Failed to regenerate block. Please try again."
+        });
         return;
       }
       
       const data = await res.json();
       
-      // Validate the response structure
       if (!data || !data.blocks || !Array.isArray(data.blocks)) {
         console.error('Invalid response structure:', data);
-        alert('Invalid response from server. Please try again.');
+        setError({
+          title: "Invalid Response",
+          message: "Received invalid response from server. Please try again."
+        });
         return;
       }
       
       setContractJson(data);
     } catch (err) {
       console.error('Error regenerating block:', err);
-      alert('Failed to regenerate block. Please try again.');
+      setError({
+        title: "Error",
+        message: "Failed to regenerate block. Please try again."
+      });
     }
   };
 
@@ -190,8 +239,8 @@ export default function ContractPage() {
   };
 
   // Handler to update a signature field
-  const handleSignatureSave = (blockIndex: number, signatureIndex: number, img_url: string) => {
-    console.log('handleSignatureSave called:', { blockIndex, signatureIndex, hasImgUrl: !!img_url });
+  const handleSignatureSave = (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
+    console.log('handleSignatureSave called:', { blockIndex, signatureIndex, signatureData });
     
     setContractJson((prev) => {
       if (!prev) return prev;
@@ -214,7 +263,9 @@ export default function ContractPage() {
 
       signatures[signatureIndex] = {
         ...signatures[signatureIndex],
-        img_url: img_url
+        img_url: signatureData.img_url,
+        name: signatureData.name,
+        date: signatureData.date
       };
 
       block.signatures = signatures;
@@ -264,12 +315,14 @@ export default function ContractPage() {
   const handleSendContract = async () => {
     if (!contractJson || isSendingContract) return;
     
-    // Ensure no blanks remain for current party
     const hasBlanks = contractJson.blocks.some((block) =>
       block.signatures.some((s) => s.party === currentParty && s.img_url === "")
     );
     if (hasBlanks) {
-      alert("Please sign your designated signature fields (in blue) before sending.");
+      setError({
+        title: "Missing Signatures",
+        message: "Please sign your designated signature fields (in blue) before sending."
+      });
       return;
     }
     
@@ -281,14 +334,19 @@ export default function ContractPage() {
         body: JSON.stringify({ contractJson, recipientEmail }),
       });
       if (res.ok) {
-        alert("Contract sent successfully!");
         router.push('/dashboard');
       } else {
-        alert("Failed to send contract.");
+        setError({
+          title: "Send Failed",
+          message: "Failed to send contract. Please try again."
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Error sending contract.");
+      setError({
+        title: "Error",
+        message: "An error occurred while sending the contract. Please try again."
+      });
     } finally {
       setIsSendingContract(false);
     }
@@ -317,11 +375,17 @@ export default function ContractPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Failed to generate PDF');
+        setError({
+          title: "PDF Generation Failed",
+          message: "Failed to generate PDF. Please try again."
+        });
       }
     } catch (err) {
       console.error('Error downloading PDF:', err);
-      alert('Error downloading PDF');
+      setError({
+        title: "Error",
+        message: "An error occurred while generating the PDF. Please try again."
+      });
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -550,15 +614,14 @@ export default function ContractPage() {
             {showSignatureFor && (
               <SignatureModal
                 onClose={() => setShowSignatureFor(null)}
-                onSave={(img_url: string) => {
+                onSave={(signatureData: { img_url: string; name: string; date: string }) => {
                   const { blockIndex, signatureIndex } = showSignatureFor;
                   console.log('Received signature data:', {
                     blockIndex,
                     signatureIndex,
-                    dataUrlLength: img_url.length,
-                    dataUrlPreview: img_url.substring(0, 50) + '...'
+                    signatureData
                   });
-                  handleSignatureSave(blockIndex, signatureIndex, img_url);
+                  handleSignatureSave(blockIndex, signatureIndex, signatureData);
                   setShowSignatureFor(null);
                 }}
               />
@@ -568,29 +631,29 @@ export default function ContractPage() {
           {/* Right: Info + Send Panel */}
           <div className={`${isMobileView && activeTab !== 'info' ? 'hidden' : ''} w-full lg:w-5/12 h-full flex flex-col space-y-4`}>
             <div className="flex-1 bg-white rounded-lg p-4 sm:p-6 shadow-md flex flex-col min-h-0">
-              {/* Suggested Information - Scrollable */}
-              <div className="flex-1 overflow-y-auto pl-4">
-                {contractJson?.unknowns?.length > 0 && (
-                  <>
-                    <h2 className="text-lg font-semibold mb-4">Suggested Information</h2>
-                    <ul className="list-disc pl-4 space-y-2 mb-4">
-                      {contractJson.unknowns.map((unknown, i) => (
-                        <li key={i} className="text-gray-700 text-sm sm:text-base">{unknown}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                
-                
-              </div>
-
               {/* AI Assessment */}
               {contractJson?.assessment && (
-                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                    <h2 className="text-sm font-semibold text-gray-700 mb-2">Contract Assessment</h2>
-                    <p className="text-xs sm:text-sm text-gray-700">{contractJson.assessment}</p>
-                  </div>
+                <div className="p-3 mb-8">
+                  <h2 className="text-lg font-semibold mb-4">Contract Assessment</h2>
+                  <p className="text-xs sm:text-sm text-gray-700">{contractJson.assessment}</p>
+                </div>
+              )}
+
+              {/* Suggested Information - Scrollable */}
+              <div className="flex-1 overflow-y-auto">
+                {contractJson?.unknowns?.length > 0 && (
+                  <>
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                      <h2 className="text-sm font-semibold text-gray-700 mb-2">Suggested Information</h2>
+                      <ul className="list-disc pl-4 space-y-2">
+                        {contractJson.unknowns.map((unknown, i) => (
+                          <li key={i} className="text-gray-700 text-sm">{unknown}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
                 )}
+              </div>
 
               {/* Regenerate Contract - Fixed at Bottom */}
               <div className="flex-shrink-0 pt-4 mt-4 border-gray-200">
@@ -676,6 +739,14 @@ export default function ContractPage() {
 
       {/* Contract Preview Modal */}
       {showPreview && <ContractPreviewModal />}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={!!error}
+        onClose={() => setError(null)}
+        title={error?.title || ""}
+        message={error?.message || ""}
+      />
     </div>
   );
 }
