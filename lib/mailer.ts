@@ -55,52 +55,78 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendFinalizedContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
-    const pdfBuffer = await generateContractPDF(contractJson, contractId);
-
-    // Get the sender's email from the contract
-    const contract = await getContract(contractId);
+    console.log('Starting sendFinalizedContractEmail with:', { contractId, recipientEmail });
     
-    if (!contract) {
-      throw new Error('Contract not found');
-    }
+    try {
+      const pdfBuffer = await generateContractPDF(contractJson, contractId);
+      console.log('PDF generated successfully, size:', pdfBuffer.length);
 
-    await connectToDatabase();
-    const db = mongoose.connection.db;
-    if (!db) {
-      throw new Error('Database connection failed');
-    }
+      // Get the sender's email from the contract
+      const contract = await getContract(contractId);
+      
+      if (!contract) {
+        throw new Error('Contract not found');
+      }
 
-    const senderEmail = contract.userId ? (await db.collection('users').findOne(
-      { _id: new mongoose.Types.ObjectId(contract.userId) }
-    ))?.email : null;
+      console.log('Contract found:', { contractId: contract._id, userId: contract.userId });
 
-    if (!senderEmail) {
-      throw new Error('Sender email not found');
-    }
+      await connectToDatabase();
+      const db = mongoose.connection.db;
+      if (!db) {
+        throw new Error('Database connection failed');
+      }
 
-    // Send to both parties
-    const recipients = [recipientEmail, senderEmail].filter(Boolean);
+      const senderEmail = contract.userId ? (await db.collection('users').findOne(
+        { _id: new mongoose.Types.ObjectId(contract.userId) }
+      ))?.email : null;
 
-    const mailOptions = {
-        from: process.env.FROM_EMAIL,
-        to: recipients.join(', '),
-        subject: "Finalized Contract",
-        html: `
-          <p>Hello,</p>
-          <p>The contract has been finalized and signed by all parties. Please find the completed contract attached.</p>
-          <p>Thank you.</p>
-        `,
-        attachments: [
-          {
-            filename: `contract-${contractId}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }
-        ]
-      };
-    
-      await transporter.sendMail(mailOptions);
+      console.log('Sender email found:', senderEmail);
+
+      if (!senderEmail) {
+        throw new Error('Sender email not found');
+      }
+
+      // Send to both parties
+      const recipients = [recipientEmail, senderEmail].filter(Boolean);
+      console.log('Sending to recipients:', recipients);
+
+      // Send separate emails to each recipient to avoid deduplication
+      const emailPromises = recipients.map(async (email) => {
+        const mailOptions = {
+          from: process.env.FROM_EMAIL,
+          to: email,
+          subject: "Finalized Contract",
+          html: `
+            <p>Hello,</p>
+            <p>The contract has been finalized and signed by all parties. Please find the completed contract attached.</p>
+            <p>Thank you.</p>
+          `,
+          attachments: [
+            {
+              filename: `contract-${contractId}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            }
+          ]
+        };
+        
+        console.log(`Sending email to ${email} with options:`, { 
+          from: mailOptions.from, 
+          to: mailOptions.to, 
+          subject: mailOptions.subject,
+          hasAttachment: !!mailOptions.attachments.length
+        });
+        
+        return transporter.sendMail(mailOptions);
+      });
+      
+      await Promise.all(emailPromises);
+      console.log('All emails sent successfully');
       return contractId;
+    } catch (error) {
+      console.error('Error in sendFinalizedContractEmail:', error);
+      throw error;
+    }
 }
 
 export async function sendContractEmail(contractId: string, contractJson: any, recipientEmail: string) {

@@ -730,7 +730,7 @@ export default function ContractPage() {
                 className={`mt-3 w-full py-3 text-white rounded-md transition flex items-center justify-center text-sm sm:text-base cursor-pointer ${
                   isSendingContract
                     ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-black hover:bg-gray-900'
+                    : 'bg-black hover:bg-gray-900 cursor-pointer'
                 }`}
               >
                 {(() => {
