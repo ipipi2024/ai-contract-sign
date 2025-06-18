@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ContractBlock from '@/components/ContractBlock';
 import SignatureModal from '@/components/SignatureModal';
@@ -81,7 +81,8 @@ const LoadingSpinner = ({ size = "w-5 h-5" }: { size?: string }) => {
   );
 };
 
-export default function SignContractPage() {
+// Extract the main component logic into a separate component
+function SignContractContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -369,3 +370,19 @@ export default function SignContractPage() {
     </div>
   );
 }
+
+// Main component wrapped with Suspense
+export default function SignContractPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <LoadingSpinner size="w-12 h-12" />
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignContractContent />
+    </Suspense>
+  );
+} 
