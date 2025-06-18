@@ -123,7 +123,7 @@ export default function SignatureModal({ onClose, onSave }) {
       className="fixed z-20 inset-0 overflow-y-auto"
     >
       <div className="flex items-center justify-center min-h-screen px-4">
-        <DialogBackdrop className="fixed inset-0 bg-black opacity-30" />
+        <DialogBackdrop className="fixed inset-0 bg-black opacity-50" />
         <DialogPanel className="relative bg-white rounded-lg max-w-md w-full p-6">
           <div className="absolute top-4 right-4">
             <button
