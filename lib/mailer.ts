@@ -57,13 +57,37 @@ const transporter = nodemailer.createTransport({
 export async function sendFinalizedContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
     const pdfBuffer = await generateContractPDF(contractJson, contractId);
 
+    // Get the sender's email from the contract
+    const contract = await getContract(contractId);
+    
+    if (!contract) {
+      throw new Error('Contract not found');
+    }
+
+    await connectToDatabase();
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Database connection failed');
+    }
+
+    const senderEmail = contract.userId ? (await db.collection('users').findOne(
+      { _id: new mongoose.Types.ObjectId(contract.userId) }
+    ))?.email : null;
+
+    if (!senderEmail) {
+      throw new Error('Sender email not found');
+    }
+
+    // Send to both parties
+    const recipients = [recipientEmail, senderEmail].filter(Boolean);
+
     const mailOptions = {
         from: process.env.FROM_EMAIL,
-        to: recipientEmail,
-        subject: "Please Review Your Finalized Contract",
+        to: recipients.join(', '),
+        subject: "Finalized Contract",
         html: `
           <p>Hello,</p>
-          <p>Please review the contract below:</p>
+          <p>The contract has been finalized and signed by all parties. Please find the completed contract attached.</p>
           <p>Thank you.</p>
         `,
         attachments: [
@@ -78,12 +102,35 @@ export async function sendFinalizedContractEmail(contractId: string, contractJso
       await transporter.sendMail(mailOptions);
       return contractId;
 }
+
 export async function sendContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
   await updateContractForSending(contractId, contractJson, recipientEmail);
 
+  // Get the sender's email from the contract
+  const contract = await getContract(contractId);
+  
+  if (!contract) {
+    throw new Error('Contract not found');
+  }
+
+  await connectToDatabase();
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('Database connection failed');
+  }
+
+  const senderEmail = contract.userId ? (await db.collection('users').findOne(
+    { _id: new mongoose.Types.ObjectId(contract.userId) }
+  ))?.email : null;
+
+  if (!senderEmail) {
+    throw new Error('Sender email not found');
+  }
+
   const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign/${contractId}`;
 
-  const mailOptions = {
+  // Send email to recipient (signing invitation)
+  const recipientMailOptions = {
     from: process.env.FROM_EMAIL,
     to: recipientEmail,
     subject: "Please Sign the Contract",
@@ -95,7 +142,25 @@ export async function sendContractEmail(contractId: string, contractJson: any, r
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  // Send email to sender (confirmation)
+  const senderMailOptions = {
+    from: process.env.FROM_EMAIL,
+    to: senderEmail,
+    subject: "Contract Sent Successfully",
+    html: `
+      <p>Hello,</p>
+      <p>Your contract has been sent successfully to ${recipientEmail}.</p>
+      <p>You will be notified when the contract is signed and finalized.</p>
+      <p>Thank you.</p>
+    `,
+  };
+
+  // Send both emails
+  await Promise.all([
+    transporter.sendMail(recipientMailOptions),
+    transporter.sendMail(senderMailOptions)
+  ]);
+
   return contractId;
 }
 

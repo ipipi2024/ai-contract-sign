@@ -45,14 +45,21 @@ interface ErrorModalProps {
 const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black opacity-50" onClick={handleBackdropClick}></div>
+      <div className="relative bg-white rounded-lg max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-500 cursor-pointer"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -63,7 +70,7 @@ const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
         <div className="flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 transition-colors"
+            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 transition-colors cursor-pointer"
           >
             Close
           </button>
@@ -137,6 +144,7 @@ export default function ContractPage() {
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const hasFetchedRef = useRef(false);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
 
   useEffect(() => {
     fetchContract();
@@ -311,41 +319,39 @@ export default function ContractPage() {
   };
 
   // Handler to send contract via email
-  const [recipientEmail, setRecipientEmail] = useState("");
   const handleSendContract = async () => {
-    if (!contractJson || isSendingContract) return;
-    
-    const hasBlanks = contractJson.blocks.some((block) =>
-      block.signatures.some((s) => s.party === currentParty && s.img_url === "")
-    );
-    if (hasBlanks) {
+    if (!recipientEmail) {
       setError({
-        title: "Missing Signatures",
-        message: "Please sign your designated signature fields (in blue) before sending."
+        title: "Missing Recipient Email",
+        message: "Please enter a recipient email address before sending the contract."
       });
       return;
     }
-    
+
     setIsSendingContract(true);
     try {
-      const res = await fetch(`/api/contracts/${params.id}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractJson, recipientEmail }),
+      const response = await fetch(`/api/contracts/${params.id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contractJson,
+          recipientEmail,
+        }),
       });
-      if (res.ok) {
-        router.push('/dashboard');
-      } else {
-        setError({
-          title: "Send Failed",
-          message: "Failed to send contract. Please try again."
-        });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send contract');
       }
-    } catch (err) {
-      console.error(err);
+
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Error sending contract:', error);
       setError({
-        title: "Error",
-        message: "An error occurred while sending the contract. Please try again."
+        title: "Error Sending Contract",
+        message: error instanceof Error ? error.message : 'Failed to send contract'
       });
     } finally {
       setIsSendingContract(false);
@@ -394,10 +400,17 @@ export default function ContractPage() {
   // Contract Preview Modal
   const ContractPreviewModal = () => {
     if (!contractJson) return null;
+
+    const handleBackdropClick = (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        setShowPreview(false);
+      }
+    };
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black opacity-50" onClick={handleBackdropClick}></div>
+        <div className="relative bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
           {/* Modal Header */}
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Contract Preview</h2>
@@ -405,10 +418,10 @@ export default function ContractPage() {
               <button
                 onClick={handleDownloadPDF}
                 disabled={isDownloadingPDF}
-                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center ${
+                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center cursor-pointer transition-colors ${
                   isDownloadingPDF 
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-black text-white hover:bg-gray-800'
                 }`}
               >
                 {isDownloadingPDF ? (
@@ -427,7 +440,7 @@ export default function ContractPage() {
               </button>
               <button
                 onClick={() => setShowPreview(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 cursor-pointer"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -543,7 +556,7 @@ export default function ContractPage() {
             <div className="mb-4 flex flex-wrap gap-2">
               <button
                 onClick={() => setShowPreview(true)}
-                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 flex items-center cursor-pointer transition-colors"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -554,10 +567,10 @@ export default function ContractPage() {
               <button
                 onClick={handleDownloadPDF}
                 disabled={isDownloadingPDF}
-                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center ${
+                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center cursor-pointer transition-colors ${
                   isDownloadingPDF 
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-black text-white hover:bg-gray-900'
+                    : 'bg-black text-white hover:bg-gray-800'
                 }`}
               >
                 {isDownloadingPDF ? (
@@ -676,7 +689,7 @@ export default function ContractPage() {
                       handleContractRegeneration();
                     }}
                     disabled={isRegeneratingContract}
-                    className={`p-3 sm:p-4 rounded-md transition ${
+                    className={`p-3 sm:p-4 rounded-md transition cursor-pointer ${
                       isRegeneratingContract 
                         ? 'bg-gray-900 cursor-not-allowed' 
                         : 'bg-black hover:bg-gray-900'
@@ -714,8 +727,8 @@ export default function ContractPage() {
               <button
                 onClick={handleSendContract}
                 disabled={isSendingContract}
-                className={`mt-3 w-full py-3 text-white rounded-md transition flex items-center justify-center text-sm sm:text-base ${
-                  isSendingContract 
+                className={`mt-3 w-full py-3 text-white rounded-md transition flex items-center justify-center text-sm sm:text-base cursor-pointer ${
+                  isSendingContract
                     ? 'bg-gray-600 cursor-not-allowed' 
                     : 'bg-black hover:bg-gray-900'
                 }`}
