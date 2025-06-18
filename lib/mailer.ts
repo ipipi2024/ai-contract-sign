@@ -4,6 +4,23 @@ import { connectToDatabase } from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import { generateContractPDF } from './pdf-generator';
 
+//Modify your mailer.ts to generate and include signing tokens:
+import crypto from 'crypto';
+import SigningToken from '@/models/SigningToken';
+
+async function generateSigningToken(contractId: string, recipientEmail: string, party: string = 'PartyB') {
+  const token = crypto.randomBytes(32).toString('hex');
+  
+  await SigningToken.create({
+    token,
+    contractId,
+    recipientEmail,
+    party,
+  });
+  
+  return token;
+}
+
 // Update existing contract and mark as sent
 async function updateContractForSending(contractId: string, contractJson: any, recipientEmail: string) {
   await connectToDatabase();
@@ -78,10 +95,15 @@ export async function sendFinalizedContractEmail(contractId: string, contractJso
       await transporter.sendMail(mailOptions);
       return contractId;
 }
+// Update sendContractEmail function
 export async function sendContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
   await updateContractForSending(contractId, contractJson, recipientEmail);
 
-  const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign/${contractId}`;
+  // Generate signing token
+  const signingToken = await generateSigningToken(contractId, recipientEmail);
+  
+  // Use token-based URL instead of direct contract ID
+  const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign?token=${signingToken}`;
 
   const mailOptions = {
     from: process.env.FROM_EMAIL,
@@ -90,16 +112,12 @@ export async function sendContractEmail(contractId: string, contractJson: any, r
     html: `
       <p>Hello,</p>
       <p>Please review and sign the contract by clicking the link below:</p>
-      <p><a href="${signUrl}">Sign Contract</a></p>
+      <p><a href="${signUrl}" style="background: #000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign Contract</a></p>
+      <p>This link will expire in 72 hours.</p>
       <p>Thank you.</p>
     `,
   };
 
   await transporter.sendMail(mailOptions);
   return contractId;
-}
-
-// Helper to retrieve contract by ID
-export async function getContractById(contractId: string) {
-  return await getContract(contractId);
 }

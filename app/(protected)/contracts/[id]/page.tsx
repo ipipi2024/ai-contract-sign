@@ -1,4 +1,4 @@
-// app/contract/page.js
+// app/contracts/[id]/page.js
 
 // Have a list of contracts to choose from, depending on the field you're working with
 

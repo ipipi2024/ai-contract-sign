@@ -1,77 +1,54 @@
+// app/api/contracts/[id]/sign/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import mongoose from 'mongoose';
 import Contract from '@/models/Contract';
-
+import SigningToken from '@/models/SigningToken';
+import mongoose from 'mongoose';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { contractJson, timestamp } = await request.json();
-
-    if (!contractJson) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Await params before use
+    const { contractJson, timestamp, token } = await request.json();
     const { id } = await params;
-    
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: 'Invalid contract ID format' },
-        { status: 400 }
-      );
-    }
 
-    // Connect to database
     await connectToDatabase();
 
-    // Find the contract
-    const contract = await Contract.findById(id);
+    // If token is provided, validate it
+    if (token) {
+      const signingToken = await SigningToken.findOne({
+        token,
+        contractId: id,
+        used: false,
+        expiresAt: { $gt: new Date() }
+      });
 
-    if (!contract) {
-      return NextResponse.json(
-        { error: 'Contract not found' },
-        { status: 404 }
-      );
+      if (!signingToken) {
+        return NextResponse.json(
+          { error: 'Invalid or expired signing token' },
+          { status: 401 }
+        );
+      }
+
+      // Mark token as used
+      signingToken.used = true;
+      signingToken.usedAt = new Date();
+      signingToken.ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
+      await signingToken.save();
     }
 
-    // If all parties have signed, update the contract status
-    
-    contract.status = 'completed';
-    contract.completedAt = new Date().toISOString();
-    
-
-    // Save the updated contract
-    await contract.save();
-
-    
-    const recipientEmail = contract.recipientEmail;
-    // Use recipientEmail as needed
-    console.log('Recipient email:', recipientEmail);
-
-    
-    
-
-    return NextResponse.json({
-      success: true,
-      message: 'Contract signed successfully',
+    // Update contract
+    await Contract.findByIdAndUpdate(id, {
+      content: JSON.stringify(contractJson),
+      status: 'signed',
+      signedAt: timestamp,
+      updatedAt: new Date()
     });
 
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error signing contract:', error);
-    // Log the actual error message for debugging
-    console.error('Full error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      name: error instanceof Error ? error.name : 'Unknown error type'
-    });
     return NextResponse.json(
       { error: 'Failed to sign contract' },
       { status: 500 }

@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Generate contract using GPT, retrieve it as a JSON object
     const contractJson = await generateContractJson(`This is the user's name: ${userName}. ${prompt}`);
+    
 
     // Save to database with the authenticated user's ID
     const contract = await Contract.create({

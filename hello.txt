@@ -1,1 +1,6 @@
-hello world
+Things to Do:
+1.For block regeneration, make it so that it does not regenerate the entire contract again
+
+*Bugs:
+1.When regenerating, signature image crash and some of the existing feilds changes
+2.When page is refreshed, the updates states are not saved
