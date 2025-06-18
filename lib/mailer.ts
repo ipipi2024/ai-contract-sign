@@ -3,6 +3,25 @@ import nodemailer from "nodemailer";
 import { connectToDatabase } from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import { generateContractPDF } from './pdf-generator';
+import crypto from 'crypto';
+import SigningToken from '@/models/SigningToken';
+
+async function generateSigningToken(contractId: string, recipientEmail: string, party: string = 'PartyB') {
+  const token = crypto.randomBytes(32).toString('hex');
+  
+  console.log('Generating signing token for contract:', contractId);
+  
+  const signingToken = await SigningToken.create({
+    token,
+    contractId,
+    recipientEmail,
+    party,
+  });
+  
+  console.log('Created signing token:', signingToken);
+  
+  return token;
+}
 
 // Update existing contract and mark as sent
 async function updateContractForSending(contractId: string, contractJson: any, recipientEmail: string) {
@@ -129,64 +148,30 @@ export async function sendFinalizedContractEmail(contractId: string, contractJso
     }
 }
 
+// Update sendContractEmail function
 export async function sendContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
   await updateContractForSending(contractId, contractJson, recipientEmail);
 
-  // Get the sender's email from the contract
-  const contract = await getContract(contractId);
+  // Generate signing token
+  const signingToken = await generateSigningToken(contractId, recipientEmail);
   
-  if (!contract) {
-    throw new Error('Contract not found');
-  }
+  // Use token-based URL instead of direct contract ID
+  const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign?token=${signingToken}`;
 
-  await connectToDatabase();
-  const db = mongoose.connection.db;
-  if (!db) {
-    throw new Error('Database connection failed');
-  }
-
-  const senderEmail = contract.userId ? (await db.collection('users').findOne(
-    { _id: new mongoose.Types.ObjectId(contract.userId) }
-  ))?.email : null;
-
-  if (!senderEmail) {
-    throw new Error('Sender email not found');
-  }
-
-  const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign/${contractId}`;
-
-  // Send email to recipient (signing invitation)
-  const recipientMailOptions = {
+  const mailOptions = {
     from: process.env.FROM_EMAIL,
     to: recipientEmail,
     subject: "Please Sign the Contract",
     html: `
       <p>Hello,</p>
       <p>Please review and sign the contract by clicking the link below:</p>
-      <p><a href="${signUrl}">Sign Contract</a></p>
+      <p><a href="${signUrl}" style="background: #000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign Contract</a></p>
+      <p>This link will expire in 72 hours.</p>
       <p>Thank you.</p>
     `,
   };
 
-  // Send email to sender (confirmation)
-  const senderMailOptions = {
-    from: process.env.FROM_EMAIL,
-    to: senderEmail,
-    subject: "Contract Sent Successfully",
-    html: `
-      <p>Hello,</p>
-      <p>Your contract has been sent successfully to ${recipientEmail}.</p>
-      <p>You will be notified when the contract is signed and finalized.</p>
-      <p>Thank you.</p>
-    `,
-  };
-
-  // Send both emails
-  await Promise.all([
-    transporter.sendMail(recipientMailOptions),
-    transporter.sendMail(senderMailOptions)
-  ]);
-
+  await transporter.sendMail(mailOptions);
   return contractId;
 }
 

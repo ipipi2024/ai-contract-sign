@@ -15,7 +15,8 @@ export default withAuth(
       '/auth/signin',
       '/auth/signup',
       '/auth/error',
-      '/contracts/help'
+      '/contracts/help',
+      '/',
     ];
     
     // Define public API routes
