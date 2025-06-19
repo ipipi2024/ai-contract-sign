@@ -54,7 +54,7 @@ export default withAuth(
         const pathname = req.nextUrl.pathname;
 
         // Paths that should remain publicly accessible
-        const publicPaths = ['/contracts/sign', '/thank-you', '/auth/signin', '/auth/signup', '/auth/error'];
+        const publicPaths = ['/contracts/sign', '/thank-you', '/auth/signin', '/auth/signup', '/auth/error', '/'];
 
         // Check if the current path is a public one
         if (publicPaths.some(path => pathname.startsWith(path))) {
