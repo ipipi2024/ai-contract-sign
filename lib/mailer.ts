@@ -86,7 +86,7 @@ function generateEmailTemplate(content: {
 }) {
   const companyName = process.env.COMPANY_NAME || 'Your Company';
   const companyWebsite = process.env.COMPANY_WEBSITE || process.env.NEXT_PUBLIC_BASE_URL;
-  const logoUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/images/full-logo.PNG`;
+  const logoUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/images/logo.svg`;
   
   return `
     <!DOCTYPE html>
