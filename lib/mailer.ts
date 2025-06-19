@@ -73,6 +73,109 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Professional email template generator
+function generateEmailTemplate(content: {
+  recipientName?: string;
+  title: string;
+  message: string;
+  actionButton?: {
+    text: string;
+    url: string;
+  };
+  additionalInfo?: string;
+}) {
+  const companyName = process.env.COMPANY_NAME || 'Your Company';
+  const companyWebsite = process.env.COMPANY_WEBSITE || process.env.NEXT_PUBLIC_BASE_URL;
+  const logoUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/images/full-logo.PNG`;
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${content.title}</title>
+      <!--[if mso]>
+      <noscript>
+        <xml>
+          <o:OfficeDocumentSettings>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+          </o:OfficeDocumentSettings>
+        </xml>
+      </noscript>
+      <![endif]-->
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; background-color: #f4f4f4;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+        <tr>
+          <td align="center" style="padding: 40px 0;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <!-- Header -->
+              <tr>
+                <td align="center" style="padding: 40px 20px 30px 20px; border-bottom: 1px solid #eeeeee;">
+                  <img src="${logoUrl}" alt="${companyName}" style="height: 50px; width: auto; display: block;">
+                </td>
+              </tr>
+              
+              <!-- Content -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  ${content.recipientName ? `<h2 style="margin: 0 0 20px 0; font-size: 24px; color: #333333; font-weight: normal;">Hello ${content.recipientName},</h2>` : ''}
+                  
+                  <div style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #555555;">
+                    ${content.message}
+                  </div>
+                  
+                  ${content.actionButton ? `
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 30px auto;">
+                      <tr>
+                        <td style="border-radius: 6px; background-color: #000000;">
+                          <a href="${content.actionButton.url}" target="_blank" style="display: inline-block; padding: 14px 30px; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                            ${content.actionButton.text}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  ` : ''}
+                  
+                  ${content.additionalInfo ? `
+                    <div style="margin: 30px 0 0 0; padding: 20px; background-color: #f8f9fa; border-radius: 6px; font-size: 14px; color: #666666; line-height: 1.5;">
+                      ${content.additionalInfo}
+                    </div>
+                  ` : ''}
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 30px; background-color: #f8f9fa; border-top: 1px solid #eeeeee; border-radius: 0 0 8px 8px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td align="center" style="padding: 0 0 15px 0;">
+                        <p style="margin: 0; font-size: 14px; color: #999999;">
+                          © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center">
+                        <p style="margin: 0; font-size: 14px; color: #999999;">
+                          <a href="${companyWebsite}" style="color: #666666; text-decoration: none;">${companyWebsite}</a>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
 export async function sendFinalizedContractEmail(contractId: string, contractJson: any, recipientEmail: string) {
     console.log('Starting sendFinalizedContractEmail with:', { contractId, recipientEmail });
     
@@ -111,15 +214,27 @@ export async function sendFinalizedContractEmail(contractId: string, contractJso
 
       // Send separate emails to each recipient to avoid deduplication
       const emailPromises = recipients.map(async (email) => {
-        const mailOptions = {
-          from: process.env.FROM_EMAIL,
-          to: email,
-          subject: "Finalized Contract",
-          html: `
-            <p>Hello,</p>
-            <p>The contract has been finalized and signed by all parties. Please find the completed contract attached.</p>
-            <p>Thank you.</p>
+        const htmlContent = generateEmailTemplate({
+          title: 'Contract Finalized',
+          message: `
+            <p>We're pleased to inform you that the contract has been successfully finalized and signed by all parties.</p>
+            <p>The fully executed contract is attached to this email for your records. Please save this document in a secure location as it represents a legally binding agreement between all parties.</p>
+            <p>If you have any questions or need any clarification regarding the contract, please don't hesitate to reach out.</p>
           `,
+          additionalInfo: `
+            <strong>Important Information:</strong><br>
+            • This is a legally binding document<br>
+            • Keep this contract for your records<br>
+            • All parties have completed their signatures<br>
+            • Contract ID: ${contractId}
+          `
+        });
+
+        const mailOptions = {
+          from: `${process.env.COMPANY_NAME || 'Contract Management'} <${process.env.FROM_EMAIL}>`,
+          to: email,
+          subject: "Contract Successfully Finalized - Action Required: Save for Your Records",
+          html: htmlContent,
           attachments: [
             {
               filename: `contract-${contractId}.pdf`,
@@ -158,17 +273,31 @@ export async function sendContractEmail(contractId: string, contractJson: any, r
   // Use token-based URL instead of direct contract ID
   const signUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/contracts/sign?token=${signingToken}`;
 
-  const mailOptions = {
-    from: process.env.FROM_EMAIL,
-    to: recipientEmail,
-    subject: "Please Sign the Contract",
-    html: `
-      <p>Hello,</p>
-      <p>Please review and sign the contract by clicking the link below:</p>
-      <p><a href="${signUrl}" style="background: #000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign Contract</a></p>
-      <p>This link will expire in 72 hours.</p>
-      <p>Thank you.</p>
+  const htmlContent = generateEmailTemplate({
+    title: 'Contract Signature Request',
+    message: `
+      <p>You have been requested to review and sign an important contract document.</p>
+      <p>Please take a moment to carefully review the contract terms and conditions before signing. Once you've reviewed the document, you can sign it electronically using the secure link below.</p>
+      <p>For your security, this link will expire in 72 hours. If you need additional time, please contact the sender.</p>
     `,
+    actionButton: {
+      text: 'Review and Sign Contract',
+      url: signUrl
+    },
+    additionalInfo: `
+      <strong>Before signing, please ensure:</strong><br>
+      • You have read and understood all terms<br>
+      • You agree to the conditions outlined<br>
+      • Your information is accurate<br>
+      • This link expires in 72 hours
+    `
+  });
+
+  const mailOptions = {
+    from: `${process.env.COMPANY_NAME || 'Contract Management'} <${process.env.FROM_EMAIL}>`,
+    to: recipientEmail,
+    subject: "Action Required: Contract Signature Request",
+    html: htmlContent,
   };
 
   await transporter.sendMail(mailOptions);

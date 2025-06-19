@@ -1,0 +1,72 @@
+<svg viewBox="0 0 320 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Main brand gradient -->
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#5b73ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9c44ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Secondary gradient for accents -->
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffa500;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Drop shadow -->
+    <filter id="dropShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- Main logo container with subtle background -->
+  <rect x="10" y="15" width="50" height="50" rx="12" fill="url(#brandGradient)" opacity="0.1"/>
+  
+  <!-- Stylized 'D' integrated with signature curve -->
+  <path d="M20 25 L20 55 L35 55 Q50 55 50 40 Q50 25 35 25 Z" fill="url(#brandGradient)" filter="url(#dropShadow)"/>
+  
+  <!-- AI circuit pattern overlay on the 'D' -->
+  <circle cx="32" cy="35" r="1.5" fill="white" opacity="0.9"/>
+  <circle cx="38" cy="42" r="1.2" fill="white" opacity="0.7"/>
+  <circle cx="42" cy="33" r="1" fill="white" opacity="0.8"/>
+  <line x1="32" y1="35" x2="38" y2="42" stroke="white" stroke-width="0.8" opacity="0.6"/>
+  <line x1="38" y1="42" x2="42" y2="33" stroke="white" stroke-width="0.8" opacity="0.6"/>
+  <line x1="32" y1="35" x2="42" y2="33" stroke="white" stroke-width="0.8" opacity="0.4"/>
+  
+  <!-- Dynamic signature flourish -->
+  <path d="M55 45 Q65 35 75 45 Q80 50 85 45" stroke="url(#accentGradient)" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.8" filter="url(#softGlow)"/>
+  
+  <!-- Company name with modern typography -->
+  <g font-family="'Inter', 'Segoe UI', sans-serif">
+    <!-- DREAM -->
+    <text x="100" y="35" font-size="28" font-weight="800" fill="url(#brandGradient)" letter-spacing="-0.5px">DREAM</text>
+    
+    <!-- SIGN with different styling -->
+    <text x="100" y="58" font-size="22" font-weight="300" fill="#2d3748" letter-spacing="2px">SIGN</text>
+    
+    <!-- Connecting element -->
+    <rect x="100" y="42" width="80" height="1" fill="url(#brandGradient)" opacity="0.3"/>
+  </g>
+  
+  <!-- Floating AI elements -->
+  <circle cx="280" cy="25" r="2" fill="url(#accentGradient)" opacity="0.6">
+    <animate attributeName="cy" values="25;22;25" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="290" cy="35" r="1.5" fill="url(#brandGradient)" opacity="0.4">
+    <animate attributeName="cy" values="35;32;35" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="285" cy="45" r="1.8" fill="url(#accentGradient)" opacity="0.5">
+    <animate attributeName="cy" values="45;42;45" dur="2.8s" repeatCount="indefinite"/>
+  </circle>
+  
+  
+</svg>
