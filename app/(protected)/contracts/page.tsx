@@ -1,370 +1,371 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import ContractBlock from '@/components/ContractBlock';
-import SignatureModal from '@/components/SignatureModal';
+import Link from 'next/link';
 
 interface Contract {
   _id: string;
-  content: string;
-  recipientEmail: string;
-}
-
-interface Signature {
-  party: string;
-  img_url: string;
-  name?: string;
-  date?: string;
-  index: number;
-}
-
-interface ContractBlock {
-  text: string;
-  signatures: Signature[];
-}
-
-interface ContractJson {
-  blocks: ContractBlock[];
-  unknowns: string[];
-  assessment: string;
-  title?: string;
-  type?: string;
-  parties?: string[];
-}
-
-interface ErrorModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   title: string;
-  message: string;
+  content: string;
+  parties: Array<{
+    name: string;
+    email: string;
+    role: string;
+    signed: boolean;
+    signedAt?: string;
+  }>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <p className="text-gray-600 mb-6">{message}</p>
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Loading spinner component
-const LoadingSpinner = ({ size = "w-5 h-5" }: { size?: string }) => {
-  return (
-    <svg className={`${size} animate-spin`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-  );
-};
-
-export default function SignContractPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get('token');
-  
-  const [contract, setContract] = useState<Contract | null>(null);
-  const [contractJson, setContractJson] = useState<ContractJson | null>(null);
+export default function ContractsPage() {
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tokenValid, setTokenValid] = useState(false);
-  const [contractId, setContractId] = useState<string | null>(null);
-  const [currentParty, setCurrentParty] = useState("PartyB");
-  const [recipientEmail, setRecipientEmail] = useState<string>("");
-  const [error, setError] = useState<{ title: string; message: string } | null>(null);
-  const [showSignatureFor, setShowSignatureFor] = useState<{ blockIndex: number; signatureIndex: number } | null>(null);
-  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'pending' | 'completed'>('all');
 
   useEffect(() => {
-    if (token) {
-      validateTokenAndFetchContract();
-    } else {
-      setError({
-        title: "Missing Token",
-        message: "No signing token provided. Please use the link from your email."
-      });
-      setLoading(false);
-    }
-  }, [token]);
+    fetchContracts();
+  }, []);
 
-  const validateTokenAndFetchContract = async () => {
+  const fetchContracts = async () => {
     try {
-      // First validate the token
-      const tokenResponse = await fetch('/api/contracts/validate-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      });
-
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
-        setError({
-          title: "Invalid Token",
-          message: errorData.error || 'The signing link is invalid or has expired.'
-        });
-        setLoading(false);
-        return;
+      const response = await fetch('/api/contracts');
+      if (!response.ok) {
+        throw new Error('Failed to fetch contracts');
       }
-
-      const tokenData = await tokenResponse.json();
-      setTokenValid(true);
-      setContractId(tokenData.contractId);
-      setCurrentParty(tokenData.party);
-      setRecipientEmail(tokenData.recipientEmail);
-
-      // Now fetch the contract
-      const contractResponse = await fetch(`/api/contracts/${tokenData.contractId}`);
-      if (contractResponse.ok) {
-        const data = await contractResponse.json();
-        setContract(data.contract);
-        
-        let parsedContent;
-        if (typeof data.contract.content === 'string') {
-          parsedContent = JSON.parse(data.contract.content);
-        } else {
-          parsedContent = data.contract.content;
-        }
-        setContractJson(parsedContent);
-      } else {
-        setError({
-          title: "Contract Not Found",
-          message: "Failed to load the contract. Please contact the sender."
-        });
-      }
+      const data = await response.json();
+      setContracts(data.contracts);
     } catch (error) {
-      console.error('Error:', error);
-      setError({
-        title: "Error",
-        message: "An error occurred while loading the contract. Please try again."
-      });
+      console.error('Error fetching contracts:', error);
+      setError('Failed to load contracts');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handler to update a signature field
-  const handleSignatureSave = (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
-    setContractJson((prev) => {
-      if (!prev) return prev;
-      
-      const updatedBlocks = [...prev.blocks];
-      const block = { ...updatedBlocks[blockIndex] };
-      const signatures = [...block.signatures];
-      
-      if (signatures[signatureIndex].party !== currentParty) {
-        console.error(`Signature at index ${signatureIndex} is not for the current party`);
-        return prev;
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return (
+          <svg className="w-5 h-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        );
+      case 'pending':
+        return (
+          <svg className="w-5 h-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z" clipRule="evenodd" />
+          </svg>
+        );
+    }
+  };
+
+  const getDocumentIcon = () => (
+    <svg className="w-12 h-12 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 3v5a2 2 0 002 2h5" />
+    </svg>
+  );
+
+  const filteredContracts = contracts
+    .filter(contract => filterStatus === 'all' || contract.status === filterStatus)
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.title.localeCompare(b.title);
+        case 'status':
+          return a.status.localeCompare(b.status);
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
-
-      signatures[signatureIndex] = {
-        ...signatures[signatureIndex],
-        img_url: signatureData.img_url,
-        name: signatureData.name,
-        date: signatureData.date
-      };
-
-      block.signatures = signatures;
-      updatedBlocks[blockIndex] = block;
-
-      return { ...prev, blocks: updatedBlocks };
     });
-  };
 
-  const handleFinalizeContract = async () => {
-    if (!contractJson || !contractId || isFinalizing) return;
+  const getTimeAgo = (date: string) => {
+    const now = new Date();
+    const past = new Date(date);
+    const diffInMs = now.getTime() - past.getTime();
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInHours / 24);
 
-    const hasBlankSignatures = contractJson.blocks.some((block) =>
-      block.signatures.some((s) => s.party === currentParty && s.img_url === "")
-    );
-
-    if (hasBlankSignatures) {
-      setError({
-        title: "Missing Signatures",
-        message: "Please sign all your designated signature fields (shown in blue) before finalizing."
-      });
-      return;
-    }
-
-    setIsFinalizing(true);
-    try {
-      const response = await fetch(`/api/contracts/${contractId}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contractJson: contractJson,
-          timestamp: new Date().toISOString(),
-          token: token
-        }),
-      });
-
-      if (response.ok) {
-        // Send finalized contract email
-        await fetch(`/api/contracts/${contractId}/finalize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contractJson,
-            recipientEmail
-          }),
-        });
-
-        router.push('/thank-you');
-      } else {
-        const errorData = await response.json();
-        setError({
-          title: "Signing Failed",
-          message: errorData.error || 'Failed to sign the contract. Please try again.'
-        });
-      }
-    } catch (error) {
-      console.error('Error signing contract:', error);
-      setError({
-        title: "Error",
-        message: 'An error occurred while signing. Please try again.'
-      });
-    } finally {
-      setIsFinalizing(false);
-    }
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    return past.toLocaleDateString();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
         <div className="text-center">
-          <LoadingSpinner size="w-12 h-12" />
-          <p className="mt-4 text-gray-600">Loading contract...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4" style={{ color: 'var(--foreground)' }}>Loading contracts...</p>
         </div>
       </div>
     );
   }
 
-  if (!tokenValid || !contract || !contractJson) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="mb-4">
-            <svg className="w-16 h-16 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold mb-2 text-gray-900">Unable to Load Contract</h1>
-          <p className="text-gray-600 mb-6">
-            {error?.message || 'The signing link is invalid or has expired.'}
-          </p>
-          <p className="text-sm text-gray-500">
-            Please contact the sender for a new signing link.
-          </p>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+          <button 
+            onClick={fetchContracts} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <div className="flex justify-center px-4 sm:px-6 lg:px-8 py-6 h-full">
-        {/* Contract Display - Centered with max width */}
-        <div className="w-full max-w-4xl flex flex-col">
-          {/* Header - Fixed */}
-          <div className="mb-6 bg-white rounded-lg p-6 shadow-md flex-shrink-0">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-              Sign Contract
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--background)' }}>
+      {/* Header Bar */}
+      <div className="border-b" style={{ borderColor: 'rgba(128, 128, 128, 0.2)' }}>
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
+              Documents
             </h1>
-            <p className="text-gray-600">
-              Please review the contract and sign in the designated areas (shown in blue).
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              Signing as: <span className="font-medium">{recipientEmail}</span>
-            </p>
+            {/* <Link
+              href="/contracts/new"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              New Contract
+            </Link> */}
           </div>
+        </div>
+      </div>
 
-          {/* Contract Blocks - Scrollable */}
-          <div className="flex-1 overflow-y-auto pb-4">
-            <div className="space-y-2">
-              {contractJson.blocks.map((block, i) => (
-                <ContractBlock
-                  key={i}
-                  block={block}
-                  blockIndex={i}
-                  currentParty={currentParty}
-                  onSignatureClick={(signatureIndex: number) => {
-                    const signature = block.signatures[signatureIndex];
-                    if (signature.party !== currentParty) return;
-                    setShowSignatureFor({ blockIndex: i, signatureIndex });
-                  }}
-                  onRegenerate={() => {}} // Disabled for signing
-                  onManualEdit={() => {}} // Disabled for signing
-                />
-              ))}
+      {/* Toolbar */}
+      <div className="border-b" style={{ borderColor: 'rgba(128, 128, 128, 0.2)' }}>
+        <div className="max-w-7xl mx-auto px-6 py-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              {/* Filter Buttons */}
+              <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                {(['all', 'draft', 'pending', 'completed'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      filterStatus === status
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status !== 'all' && (
+                      <span className="ml-1 text-xs">
+                        ({contracts.filter(c => c.status === status).length})
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort Dropdown */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-1 rounded-md border text-sm"
+                style={{ 
+                  borderColor: 'rgba(128, 128, 128, 0.3)',
+                  backgroundColor: 'var(--background)',
+                  color: 'var(--foreground)'
+                }}
+              >
+                <option value="date">Last modified</option>
+                <option value="name">Name</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md ${
+                  viewMode === 'list' 
+                    ? 'bg-gray-200 dark:bg-gray-700' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+                title="List view"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md ${
+                  viewMode === 'grid' 
+                    ? 'bg-gray-200 dark:bg-gray-700' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+                title="Grid view"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Finalize Contract Button - Fixed at Bottom */}
-          <div className="mt-4 bg-white rounded-lg p-6 shadow-md flex-shrink-0">
-            <button
-              onClick={handleFinalizeContract}
-              disabled={isFinalizing}
-              className={`w-full py-4 text-white rounded-md transition text-lg font-semibold flex items-center justify-center ${
-                isFinalizing 
-                  ? 'bg-gray-600 cursor-not-allowed' 
-                  : 'bg-black hover:bg-gray-900'
-              }`}
-            >
-              {isFinalizing ? (
-                <>
-                  <LoadingSpinner size="w-5 h-5" />
-                  <span className="ml-2">Finalizing...</span>
-                </>
-              ) : (
-                'Finalize Contract'
-              )}
-            </button>
-            <p className="text-sm text-gray-600 mt-2 text-center">
-              By clicking "Finalize Contract", you confirm that you have read and agree to all terms.
+      {/* Content Area */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {filteredContracts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="mx-auto w-24 h-24 mb-4 text-gray-300 dark:text-gray-600">
+              {getDocumentIcon()}cl
+            </div>
+            <p className="text-lg font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+              No {filterStatus !== 'all' ? filterStatus : ''} contracts found
+            </p>
+            <p style={{ color: 'var(--foreground)', opacity: 0.7 }}>
+              {filterStatus === 'all' 
+                ? 'Create your first contract to get started.' 
+                : `You don't have any contracts with "${filterStatus}" status.`}
             </p>
           </div>
+        ) : viewMode === 'grid' ? (
+          /* Grid View */
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredContracts.map((contract) => (
+              <Link
+                key={contract._id}
+                href={`/contracts/${contract._id}`}
+                className="group"
+              >
+                <div 
+                  className="p-4 rounded-lg border hover:shadow-md transition-all cursor-pointer h-full flex flex-col"
+                  style={{ 
+                    backgroundColor: 'var(--background)',
+                    borderColor: 'rgba(128, 128, 128, 0.2)'
+                  }}
+                >
+                  <div className="flex justify-center mb-3 text-blue-600 dark:text-blue-400">
+                    {getDocumentIcon()}
+                  </div>
+                  <h3 className="font-medium text-center mb-2 line-clamp-2" style={{ color: 'var(--foreground)' }}>
+                    {contract.title}
+                  </h3>
+                  <div className="mt-auto">
+                    <div className="flex justify-center mb-2">
+                      {getStatusIcon(contract.status)}
+                    </div>
+                    <p className="text-xs text-center" style={{ color: 'var(--foreground)', opacity: 0.6 }}>
+                      {getTimeAgo(contract.updatedAt)}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          /* List View */
+          <div className="space-y-1">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium" style={{ color: 'var(--foreground)', opacity: 0.7 }}>
+              <div className="col-span-5">Name</div>
+              <div className="col-span-2">Status</div>
+              <div className="col-span-2">Signatures</div>
+              <div className="col-span-2">Modified</div>
+              <div className="col-span-1"></div>
+            </div>
 
-          {/* Signature Modal */}
-          {showSignatureFor && (
-            <SignatureModal
-              onClose={() => setShowSignatureFor(null)}
-              onSave={(signatureData: { img_url: string; name: string; date: string }) => {
-                const { blockIndex, signatureIndex } = showSignatureFor;
-                handleSignatureSave(blockIndex, signatureIndex, signatureData);
-                setShowSignatureFor(null);
-              }}
-            />
-          )}
-
-          {/* Error Modal */}
-          <ErrorModal
-            isOpen={!!error}
-            onClose={() => setError(null)}
-            title={error?.title || ""}
-            message={error?.message || ""}
-          />
-        </div>
+            {/* Table Rows */}
+            {filteredContracts.map((contract) => (
+              <Link
+                key={contract._id}
+                href={`/contracts/${contract._id}`}
+                className="block"
+              >
+                <div 
+                  className="grid grid-cols-12 gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors items-center"
+                  style={{ color: 'var(--foreground)' }}
+                >
+                  <div className="col-span-5 flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {getStatusIcon(contract.status)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{contract.title}</p>
+                      <p className="text-xs truncate" style={{ opacity: 0.6 }}>
+                        {contract.content ? contract.content.substring(0, 50) + '...' : 'No description'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                      ${contract.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        contract.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}
+                    >
+                      {contract.status}
+                    </span>
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <div className="flex items-center space-x-1">
+                      <div className="flex -space-x-2">
+                        {contract.parties.slice(0, 3).map((party, index) => (
+                          <div
+                            key={index}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 border-white dark:border-gray-900 ${
+                              party.signed 
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-300'
+                            }`}
+                            title={`${party.name} - ${party.signed ? 'Signed' : 'Pending'}`}
+                          >
+                            {party.name.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-sm" style={{ opacity: 0.7 }}>
+                        {contract.parties.filter(p => p.signed).length}/{contract.parties.length}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <p className="text-sm" style={{ opacity: 0.7 }}>
+                      {getTimeAgo(contract.updatedAt)}
+                    </p>
+                  </div>
+                  
+                  <div className="col-span-1 flex justify-end">
+                    <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
+                      <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
