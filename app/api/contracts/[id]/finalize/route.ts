@@ -1,3 +1,4 @@
+//app/api/contracts/[id]/finalize
 import { NextRequest, NextResponse } from 'next/server';
 import { sendFinalizedContractEmail } from '@/lib/mailer';
 

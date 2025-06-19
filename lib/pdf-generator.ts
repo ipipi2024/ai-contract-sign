@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from 'chrome-aws-lambda';
 
 interface Signature {
   party: string;
@@ -21,9 +22,12 @@ interface ContractJson {
 }
 
 export async function generateContractPDF(contractJson: ContractJson, contractId: string): Promise<Buffer> {
+  // Use chrome-aws-lambda for serverless environments
   const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless,
   });
 
   try {
@@ -156,4 +160,4 @@ function generateContractHTML(contractJson: ContractJson, contractId: string): s
     </body>
     </html>
   `;
-} 
+}

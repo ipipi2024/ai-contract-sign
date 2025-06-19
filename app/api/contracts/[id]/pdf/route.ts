@@ -1,3 +1,4 @@
+//app/api//contracts/[id]/pdf
 import { NextRequest, NextResponse } from 'next/server';
 import { generateContractPDF } from '@/lib/pdf-generator';
 import { getContractById } from '@/lib/mailer';
