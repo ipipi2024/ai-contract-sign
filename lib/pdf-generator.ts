@@ -1,5 +1,6 @@
+// lib/pdf-generator.ts
 import puppeteer from 'puppeteer-core';
-import chromium from 'chrome-aws-lambda';
+import chromium from '@sparticuz/chromium';
 
 interface Signature {
   party: string;
@@ -22,16 +23,36 @@ interface ContractJson {
 }
 
 export async function generateContractPDF(contractJson: ContractJson, contractId: string): Promise<Buffer> {
-  // Use chrome-aws-lambda for serverless environments
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
-  });
+  // For local development, use regular puppeteer
+  const isLocal = process.env.NODE_ENV === 'development';
+  
+  let browser;
+  
+  if (isLocal) {
+    // For local development, use regular puppeteer
+    const puppeteerDev = await import('puppeteer');
+    browser = await puppeteerDev.default.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  } else {
+    // For production (Vercel), use chromium
+    browser = await puppeteer.launch({
+      args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+      defaultViewport: {
+        width: 1920,
+        height: 1080
+      },
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
 
   try {
     const page = await browser.newPage();
+    
+    // Ignore HTTPS errors if needed
+    await page.setBypassCSP(true);
     
     // Set the page size to letter format
     await page.setViewport({ width: 816, height: 1056 }); // 8.5x11 inches at 96 DPI
