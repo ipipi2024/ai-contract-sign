@@ -9,6 +9,8 @@ const openai = new OpenAI({
 interface Signature {
   party: string;
   img_url: string;
+  name?: string;
+  date?: string;
   index: number; // index of the signature in the block
 }
 
@@ -156,7 +158,12 @@ ____________________
 Return ONLY the JSON (no extra commentary or markdown formatting).
 
 Make absolutely sure to include a final signature block with the described format, take special care to include the 2 sequences of 20 underscores separated by newlines.
-DO NOT forget to include the 2 sequences of 20 underscores separated by newlines.`;
+DO NOT forget to include the 2 sequences of 20 underscores separated by newlines.
+
+
+Final Check:
+- Does the contract include a final signature block?
+- Does the contract include 2 sequences of 20 underscores separated by newlines?`;
 
   const userMessage = `Please draft a contract based on this request. Pay special attention to any specific names, companies, contexts, or details mentioned and incorporate them directly into the contract text:
 
@@ -256,6 +263,20 @@ export async function regenerateContract(
   contractJson: ContractJson,
   userInstructions: string
 ): Promise<ContractJson> {
+  // Clear signatures before sending to AI to reduce payload size
+  const contractWithoutSignatures = {
+    ...contractJson,
+    blocks: contractJson.blocks.map(block => ({
+      ...block,
+      signatures: block.signatures.map(sig => ({
+        ...sig,
+        img_url: "", // Clear signature data
+        name: undefined, // Clear name
+        date: undefined // Clear date
+      }))
+    }))
+  };
+
   const currentDate = new Date().toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'numeric', 
@@ -266,7 +287,7 @@ export async function regenerateContract(
 Today is ${currentDate}.
 
 You are a contract‐writing assistant. Here is the existing contract:
-${JSON.stringify(contractJson, null, 2)}
+${JSON.stringify(contractWithoutSignatures, null, 2)}
 
 Please regenerate the ENTIRE contract according to the user's instructions below and return the complete contract in the same JSON schema format.
 
@@ -304,14 +325,89 @@ Return ONLY the JSON (no extra commentary or markdown formatting).
 User instructions: "${userInstructions}"
 `;
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "system", content: systemPrompt.trim() }],
+  // Retry logic with exponential backoff
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: systemPrompt.trim() }],
+      });
+      
+      const text = completion.choices[0].message.content;
+      const cleanedText = cleanJsonResponse(text || '');
+      const regeneratedContract = JSON.parse(cleanedText);
+      
+      // Repopulate signatures from the original contract
+      return repopulateSignatures(regeneratedContract, contractJson);
+      
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a rate limit error
+      if (error.code === 'rate_limit_exceeded' && attempt < maxRetries) {
+        const retryAfter = error.headers?.['retry-after-ms'] || error.headers?.['retry-after'] || 1000;
+        const delay = Math.min(parseInt(retryAfter) || 1000, 10000); // Cap at 10 seconds
+        
+        console.log(`Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // For other errors or max retries reached, throw the error
+      throw error;
+    }
+  }
+  
+  // If we get here, all retries failed
+  throw lastError;
+}
+
+// Helper function to repopulate signatures after contract regeneration
+function repopulateSignatures(newContract: ContractJson, originalContract: ContractJson): ContractJson {
+  const signatureMap = new Map<string, Signature>();
+  
+  // Create a map of existing signatures by party and index
+  originalContract.blocks.forEach(block => {
+    block.signatures.forEach(sig => {
+      const key = `${sig.party}-${sig.index}`;
+      signatureMap.set(key, sig);
+    });
   });
   
-  const text = completion.choices[0].message.content;
-  const cleanedText = cleanJsonResponse(text || '');
-  return JSON.parse(cleanedText);
+  // Repopulate signatures in the new contract
+  const repopulatedBlocks = newContract.blocks.map(block => ({
+    ...block,
+    signatures: block.signatures.map(sig => {
+      const key = `${sig.party}-${sig.index}`;
+      const existingSig = signatureMap.get(key);
+      
+      if (existingSig && existingSig.img_url) {
+        // Preserve existing signature data
+        return {
+          ...sig,
+          img_url: existingSig.img_url,
+          name: existingSig.name,
+          date: existingSig.date
+        };
+      }
+      
+      // Return empty signature for new fields
+      return {
+        ...sig,
+        img_url: "",
+        name: undefined,
+        date: undefined
+      };
+    })
+  }));
+  
+  return {
+    ...newContract,
+    blocks: repopulatedBlocks
+  };
 }
 
 export async function generateSummaryText(contractJson: ContractJson): Promise<string> {
