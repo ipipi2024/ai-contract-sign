@@ -20,7 +20,6 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
-  assessment: string;
   title?: string;
   type?: string;
   parties?: string[];
@@ -107,7 +106,7 @@ export async function generateContractJson(userPrompt: string): Promise<Contract
     month: 'numeric', 
     day: 'numeric' 
   });
-
+  
   const systemPrompt = `
 Today is ${currentDate}.
 You are a contract generation assistant. You MUST return a JSON object with the following structure:
@@ -124,8 +123,7 @@ You are a contract generation assistant. You MUST return a JSON object with the 
       ]
     }
   ],
-  "unknowns": ["string"],
-  "assessment": "string"
+  "unknowns": ["string"]
 }
 
 CRITICAL REQUIREMENTS:
@@ -138,13 +136,8 @@ CRITICAL REQUIREMENTS:
 - Make sure the list of unknowns is as short as possible, consisting of ONLY the most essential, mandatory pieces of information that the contract cannot be created without.
 - Use newlines (\\n) for better formatting
 - NEVER use "PartyA" or "PartyB" anywhere in the contract text, only in signature objects
-- PRESERVE EXISTING img_url VALUES - do not change img_url fields that already contain signature data
-- Do NOT use underscores for anything except signature/name/date collection
+- Do NOT use underscores for anything except signature/name/date collection, for unknown information or information expected to be entered, use brackets [] with the unknown text within.
 - Leverage the given date where relevant
-
-CONTRACT ASSESSMENT REQUIREMENTS:
-- Provide a 25-word assessment of the contract's validity, quality, and legal soundness
-- Be honest and direct about any potential issues or missing elements
 
 IMPORTANT - USE SPECIFIC DETAILS FROM USER PROMPT:
 - If the user mentions specific names (like "Tayler", "John", "Sarah"), use those names directly in the contract text instead of generic "PartyA" or "PartyB"
@@ -214,8 +207,7 @@ You are a contract generation assistant. You MUST return a JSON object with the 
       ]
     }
   ],
-  "unknowns": ["string"],
-  "assessment": "string"
+  "unknowns": ["string"]
 }
 
 CRITICAL REQUIREMENTS:
@@ -232,13 +224,6 @@ CRITICAL REQUIREMENTS:
 - Use newlines (\\n) for better formatting
 - NEVER use "PartyA" or "PartyB" anywhere in the contract text, only in signature objects
 - PRESERVE EXISTING img_url VALUES - do not change img_url fields that already contain signature data
-
-CONTRACT ASSESSMENT REQUIREMENTS:
-- Provide a 25-word assessment of the contract's validity, quality, and legal soundness
-- Be honest and direct about any potential issues or missing elements
-- Highlight any areas that might need legal review
-- Mention if the contract is missing standard clauses for its type
-- Note if any terms are unclear or potentially problematic
 
 IMPORTANT - USE SPECIFIC DETAILS FROM USER PROMPT:
 - If the user mentions specific names (like "Tayler", "John", "Sarah"), use those names directly in the contract text instead of generic "PartyA" or "PartyB"
@@ -301,13 +286,6 @@ CRITICAL REQUIREMENTS:
 - Use newlines (\\n) for better formatting
 - NEVER use "PartyA" or "PartyB" anywhere in the contract text, only in signature objects
 - PRESERVE EXISTING img_url VALUES - do not change img_url fields that already contain signature data
-
-CONTRACT ASSESSMENT REQUIREMENTS:
-- Provide a 25-word assessment of the contract's validity, quality, and legal soundness
-- Be honest and direct about any potential issues or missing elements
-- Highlight any areas that might need legal review
-- Mention if the contract is missing standard clauses for its type
-- Note if any terms are unclear or potentially problematic
 
 IMPORTANT - USE SPECIFIC DETAILS FROM USER PROMPT:
 - If the user mentions specific names (like "Tayler", "John", "Sarah"), use those names directly in the contract text instead of generic "PartyA" or "PartyB"

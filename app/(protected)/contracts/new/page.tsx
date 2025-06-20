@@ -94,7 +94,8 @@ export default function NewContractPage() {
         message: "An error occurred while generating the contract. Please try again."
       });
     } finally {
-      setLoading(false);
+      // Never set loading to false, it makes for weird UX, because the button stops loading for a litle before the page moves on.
+      // setLoading(false);
     }
   };
 

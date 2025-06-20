@@ -211,10 +211,6 @@ export default function SignContractPage() {
 
     // Send finalized contract email via API route
     if (contract) {
-      console.log('Attempting to send finalize email for contract:', contract._id);
-      console.log('Recipient email:', contract.recipientEmail);
-      console.log('Contract JSON has blocks:', contractJson.blocks.length);
-      
       try {
         const finalizeResponse = await fetch(`/api/contracts/${params.id}/finalize`, {
           method: 'POST',
@@ -227,8 +223,6 @@ export default function SignContractPage() {
           }),
         });
 
-        console.log('Finalize response status:', finalizeResponse.status);
-
         if (!finalizeResponse.ok) {
           const errorData = await finalizeResponse.json();
           console.error('Finalize email failed:', errorData);
@@ -240,8 +234,6 @@ export default function SignContractPage() {
         console.error('Error sending finalized contract email:', error);
         // Don't block the user flow if email fails
       }
-    } else {
-      console.log('No contract found, skipping finalize email');
     }
   };
 
