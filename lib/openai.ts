@@ -245,7 +245,6 @@ IMPORTANT - USE SPECIFIC DETAILS FROM USER PROMPT:
 - If the user mentions specific context (like "business idea", "consulting work", "rental agreement"), incorporate that specific language
 - If the user provides company names, use them
 - If the user specifies relationships (like "friend", "colleague"), reference that context appropriately
-
 EXAMPLE SIGNATURE BLOCK FORMAT:
 IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date first above written.
 
