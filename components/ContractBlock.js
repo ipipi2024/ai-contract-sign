@@ -33,12 +33,12 @@ export default function ContractBlock({
           </span>
         );
       }
-
+      
       const signature = block.signatures[whichSignature];
       const isCurrentParty = signature?.party === currentParty;
       const bgClass = isCurrentParty ? 'bg-blue-50' : 'bg-red-50';
       const currentSignatureIndex = whichSignature;
-
+      
       // Create signature field with name, signature, and date lines
       parts.push(
         <div
@@ -65,12 +65,12 @@ export default function ContractBlock({
             </div>
             <div className="text-md">
               Signature: {signature?.img_url ? (
-                <img 
-                  src={signature.img_url} 
-                  alt="Signature" 
-                  className="inline-block h-12 max-w-64 object-contain"
-                />
-              ) : (
+            <img 
+              src={signature.img_url} 
+              alt="Signature" 
+              className="inline-block h-12 max-w-64 object-contain"
+            />
+          ) : (
                 <span className="text-gray-400">_______________</span>
               )}
             </div>

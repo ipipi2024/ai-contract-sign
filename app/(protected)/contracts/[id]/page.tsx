@@ -1,10 +1,6 @@
-// app/contracts/[id]/page.js
-
-// Have a list of contracts to choose from, depending on the field you're working with
-
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from 'next/navigation';
 import ContractBlock from "@/components/ContractBlock";
 import SignatureModal from "@/components/SignatureModal";
@@ -32,7 +28,14 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
-  assessment?: string;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  contractRegenerated?: boolean; // Track if this message triggered a contract regeneration
 }
 
 interface ErrorModalProps {
@@ -135,7 +138,6 @@ export default function ContractPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showSignatureFor, setShowSignatureFor] = useState<{ blockIndex: number; signatureIndex: number } | null>(null);
   const [currentParty, setCurrentParty] = useState("PartyA"); // Assume user is PartyA
-  const [contractRegenPrompt, setContractRegenPrompt] = useState("");
   const [isRegeneratingContract, setIsRegeneratingContract] = useState(false);
   const [isSendingContract, setIsSendingContract] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -145,10 +147,296 @@ export default function ContractPage() {
   const hasFetchedRef = useRef(false);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
+  
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isGeneratingInitialMessage, setIsGeneratingInitialMessage] = useState(false);
+  const [isProcessingChatMessage, setIsProcessingChatMessage] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const hasGeneratedInitialMessage = useRef(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToBottom = useRef(false);
+  const scrollPositionRef = useRef(0);
 
   useEffect(() => {
     fetchContract();
   }, []);
+
+  // Preserve scroll position during re-renders
+  useEffect(() => {
+    if (chatContainerRef.current && !shouldScrollToBottom.current) {
+      chatContainerRef.current.scrollTop = scrollPositionRef.current;
+    }
+  });
+
+  // Save scroll position before re-renders
+  const saveScrollPosition = useCallback(() => {
+    if (chatContainerRef.current) {
+      scrollPositionRef.current = chatContainerRef.current.scrollTop;
+    }
+  }, []);
+
+  // Scroll to bottom only when new messages are added
+  useEffect(() => {
+    if (shouldScrollToBottom.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      shouldScrollToBottom.current = false;
+    }
+  }, [chatMessages.length]);
+
+  // Generate initial AI message when contract loads
+  useEffect(() => {
+    if (contractJson && chatMessages.length === 0 && !hasGeneratedInitialMessage.current) {
+      hasGeneratedInitialMessage.current = true;
+      generateInitialAIMessage();
+    }
+  }, [contractJson]);
+
+  const generateInitialAIMessage = async () => {
+    if (!contractJson) return;
+    
+    setIsGeneratingInitialMessage(true);
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "Assess the contract.",
+          contractJson,
+          chatHistory: [],
+          isInitialMessage: true
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const initialMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date()
+        };
+        
+        setChatMessages([initialMessage]);
+        shouldScrollToBottom.current = true;
+      } else {
+        // Fallback message if AI fails
+        const fallbackMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: "Hello! I'm here to help you with your contract. Please let me know what you'd like to improve or add.",
+          timestamp: new Date()
+        };
+        
+        setChatMessages([fallbackMessage]);
+        shouldScrollToBottom.current = true;
+      }
+    } catch (error) {
+      console.error('Error generating initial AI message:', error);
+      
+      // Fallback message if AI fails
+      const fallbackMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: "Hello! I'm here to help you with your contract. Please let me know what you'd like to improve or add.",
+        timestamp: new Date()
+      };
+      
+      setChatMessages([fallbackMessage]);
+      shouldScrollToBottom.current = true;
+    } finally {
+      setIsGeneratingInitialMessage(false);
+    }
+  };
+
+  const processChatMessage = async (userMessage: string) => {
+    if (!contractJson || !userMessage.trim()) return;
+    
+    setIsProcessingChatMessage(true);
+    
+    // Add user message to chat
+    const userChatMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date()
+    };
+    
+    setChatMessages(prev => [...prev, userChatMessage]);
+    shouldScrollToBottom.current = true;
+    
+    try {
+      // First, ask AI to analyze the message and decide if contract should be regenerated
+      const analysisResponse = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Analyze this user message and determine if they want to modify the contract with new information. 
+          
+User message: "${userMessage}"
+
+Respond with ONLY a JSON object like this:
+{
+  "shouldRegenerate": true/false,
+  "reason": "brief explanation",
+  "response": "your helpful response to the user"
+}
+
+If the user is providing new information that should be incorporated into the contract, set shouldRegenerate to true.
+If the user is just asking questions or seeking clarification, set shouldRegenerate to false.
+If you're unsure, set shouldRegenerate to false and ask the user if they want you to regenerate the contract with their input.`,
+          contractJson,
+          chatHistory: chatMessages,
+          isAnalysis: true
+        }),
+      });
+      
+      let shouldRegenerate = false;
+      let aiResponse = "";
+      
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json();
+        console.log('AI Analysis Response:', analysisData.response);
+        
+        try {
+          // First, try to parse the response as JSON
+          const parsedResponse = JSON.parse(analysisData.response);
+          console.log('Parsed Response:', parsedResponse);
+          shouldRegenerate = parsedResponse.shouldRegenerate || false;
+          aiResponse = parsedResponse.response || "I'm here to help! You can ask me to regenerate the contract, add specific terms, or ask questions about the current contract.";
+        } catch (parseError) {
+          console.log('Parse Error:', parseError);
+          // If parsing fails, check if the response itself is a JSON object
+          if (analysisData.response && analysisData.response.trim().startsWith('{')) {
+            try {
+              const directJson = JSON.parse(analysisData.response);
+              console.log('Direct JSON:', directJson);
+              shouldRegenerate = directJson.shouldRegenerate || false;
+              aiResponse = directJson.response || "I'm here to help! You can ask me to regenerate the contract, add specific terms, or ask questions about the current contract.";
+            } catch (secondParseError) {
+              console.log('Second Parse Error:', secondParseError);
+              // If all parsing fails, treat as a regular response
+              aiResponse = analysisData.response;
+              shouldRegenerate = false;
+            }
+          } else {
+            // If parsing fails, treat as a regular response
+            aiResponse = analysisData.response;
+            shouldRegenerate = false;
+          }
+        }
+      } else {
+        aiResponse = "I'm sorry, I couldn't process your request. Please try again.";
+      }
+      
+      // Add AI response to chat immediately
+      const aiChatMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: aiResponse,
+        timestamp: new Date(),
+        contractRegenerated: false
+      };
+      
+      setChatMessages(prev => [...prev, aiChatMessage]);
+      shouldScrollToBottom.current = true;
+      
+      // If regeneration is needed, do it after showing the response
+      if (shouldRegenerate) {
+        // Regenerate contract
+        setIsRegeneratingContract(true);
+        
+        // Regenerate contract
+        const regenerateResponse = await fetch("/api/regenerateContract", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contractJson,
+            userPrompt: userMessage,
+          }),
+        });
+        
+        if (regenerateResponse.ok) {
+          const newContractJson = await regenerateResponse.json();
+          setContractJson(newContractJson);
+          
+          // Generate a summary of what was changed
+          const summaryResponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: `The contract has been updated based on the user's request: "${userMessage}". 
+              
+Please provide a brief summary (max 100 words, 50 if possible for brevity) of what was added or changed in the contract. Focus on the key improvements or additions made.
+
+After your summary, please add:
+"In order to finish the contract, I need:" followed by a bullet point list of the unknowns.
+
+If there are no unknowns in the list, do not add anything.`,
+              contractJson: newContractJson,
+              chatHistory: chatMessages,
+              isSummary: true
+            }),
+          });
+          
+          let summaryText = "✅ Contract has been updated with your requested changes.";
+          
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            summaryText = summaryData.response;
+          }
+          
+          
+          const summaryMessage: ChatMessage = {
+            id: (Date.now() + 2).toString(),
+            role: 'assistant',
+            content: summaryText,
+            timestamp: new Date(),
+            contractRegenerated: false
+          };
+          setChatMessages(prev => [...prev, summaryMessage]);
+          shouldScrollToBottom.current = true;
+
+          setIsRegeneratingContract(false);
+          
+        } else {
+          // Replace the loading message with error
+          const errorMessage: ChatMessage = {
+            id: (Date.now() + 2).toString(),
+            role: 'assistant',
+            content: "❌ Sorry, I encountered an error. Please try again.",
+            timestamp: new Date(),
+            contractRegenerated: false
+          };
+          setChatMessages(prev => [...prev, errorMessage]);
+          shouldScrollToBottom.current = true;
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error processing chat message:', error);
+      
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "❌ Sorry, I encountered an error. Please try again.",
+        timestamp: new Date()
+      };
+      
+      setChatMessages(prev => [...prev, errorMessage]);
+      shouldScrollToBottom.current = true;
+    } finally {
+      setIsProcessingChatMessage(false);
+    }
+  };
 
   // Handle responsive view detection
   useEffect(() => {
@@ -286,36 +574,6 @@ export default function ContractPage() {
 
       return { ...prev, blocks: updatedBlocks };
     });
-  };
-
-  // Handler to regenerate entire contract
-  const handleContractRegeneration = async () => {
-    if (!contractJson || !contractRegenPrompt.trim() || isRegeneratingContract) return;
-    
-    console.log('🔄 Starting contract regeneration...');
-    setIsRegeneratingContract(true);
-    
-    try {
-      const res = await fetch("/api/regenerateContract", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contractJson,
-          userPrompt: contractRegenPrompt.trim(),
-        }),
-      });
-      const data = await res.json();
-      setContractJson(data);
-      setContractRegenPrompt("");
-      console.log('✅ Contract regeneration completed');
-    } catch (err) {
-      console.error('❌ Contract regeneration failed:', err);
-    } finally {
-      setIsRegeneratingContract(false);
-      console.log('🏁 Contract regeneration finished');
-    }
   };
 
   // Handler to send contract via email
@@ -515,10 +773,132 @@ export default function ContractPage() {
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >
-        Information & Send
+        Contract Agent
       </button>
     </div>
   );
+
+  // Chat Input Component (separate to prevent re-renders)
+  const ChatInput = useCallback(() => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    
+    // Keep input focused when typing
+    useEffect(() => {
+      if (inputRef.current && !isProcessingChatMessage && newMessage.length > 0) {
+        inputRef.current.focus();
+      }
+    }, [isProcessingChatMessage, newMessage]);
+    
+    const handleSendMessage = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (newMessage.trim() && !isProcessingChatMessage) {
+        processChatMessage(newMessage);
+        setNewMessage("");
+      }
+    };
+
+    return (
+      <div className="p-6">
+        <form onSubmit={handleSendMessage} className="flex space-x-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={newMessage}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              // Ensure we don't scroll when typing
+              shouldScrollToBottom.current = false;
+            }}
+            placeholder="Ask me to improve your contract..."
+            className="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={isProcessingChatMessage}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors 
+              ${ isProcessingChatMessage
+                ? 'bg-gray-800 text-white cursor-not-allowed'
+                : 'bg-black text-white hover:bg-gray-900 cursor-pointer'
+            }`}
+          >
+            {isProcessingChatMessage ? (
+              <LoadingSpinner size="w-4 h-4" />
+            ) : (
+              'Send'
+            )}
+          </button>
+        </form>
+      </div>
+    );
+  }, [newMessage, isProcessingChatMessage, processChatMessage]);
+
+  // Chat Interface Component
+  const ChatInterface = useCallback(() => {
+    return (
+      <div className="flex flex-col h-full bg-white rounded-lg shadow-md">
+        {/* Chat Header */}
+        <div className="p-4 pl-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Contract Agent</h2>
+          <p className="text-xs text-gray-500">
+            Ask me to improve your contract or answer your questions          
+          </p>
+        </div>
+
+        {/* Chat Messages */}
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide"
+          onScroll={saveScrollPosition}
+        >
+          {isGeneratingInitialMessage ? (
+            <>
+              <div className="flex justify-start">
+                <div className="min-w-[350px] max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-gray-100 text-gray-900">
+                  <div className="space-y-3">
+                    <div className="h-3 bg-gray-300 rounded animate-pulse" style={{width: '100%'}}></div>
+                    <div className="h-3 bg-gray-300 rounded animate-pulse" style={{width: '85%'}}></div>
+                    <div className="h-3 bg-gray-300 rounded animate-pulse" style={{width: '70%'}}></div>
+                    <div className="h-3 bg-gray-300 rounded animate-pulse" style={{width: '90%'}}></div>
+                    <div className="h-3 bg-gray-300 rounded animate-pulse" style={{width: '85%'}}></div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : chatMessages.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <LoadingSpinner size="w-5 h-5" />
+              <span className="text-gray-500 ml-2">Loading AI assistant...</span>
+            </div>
+          ) : (
+            chatMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    message.role === 'user'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+                  {message.contractRegenerated && (
+                    <div className="mt-2 text-xs opacity-75">
+                      🔄 Contract was updated
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Chat Input */}
+        <ChatInput />
+      </div>
+    );
+  }, [chatMessages, isGeneratingInitialMessage, saveScrollPosition, ChatInput]);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] bg-gray-50">
@@ -628,7 +1008,7 @@ export default function ContractPage() {
               <SignatureModal
                 onClose={() => setShowSignatureFor(null)}
                 onSave={(signatureData: { img_url: string; name: string; date: string }) => {
-                  const { blockIndex, signatureIndex } = showSignatureFor;
+                  const { blockIndex, signatureIndex } = showSignatureFor!;
                   console.log('Received signature data:', {
                     blockIndex,
                     signatureIndex,
@@ -643,71 +1023,9 @@ export default function ContractPage() {
 
           {/* Right: Info + Send Panel */}
           <div className={`${isMobileView && activeTab !== 'info' ? 'hidden' : ''} w-full lg:w-5/12 h-full flex flex-col space-y-4`}>
-            <div className="flex-1 bg-white rounded-lg p-4 sm:p-6 shadow-md flex flex-col min-h-0">
-              {/* AI Assessment */}
-              {contractJson?.assessment && (
-                <div className="p-3 mb-8">
-                  <h2 className="text-lg font-semibold mb-4">Contract Assessment</h2>
-                  <p className="text-xs sm:text-sm text-gray-700">{contractJson.assessment}</p>
-                </div>
-              )}
-
-              {/* Suggested Information - Scrollable */}
-              <div className="flex-1 overflow-y-auto">
-                {contractJson?.unknowns?.length > 0 && (
-                  <>
-                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                      <h2 className="text-sm font-semibold text-gray-700 mb-2">Suggested Information</h2>
-                      <ul className="list-disc pl-4 space-y-2">
-                        {contractJson.unknowns.map((unknown, i) => (
-                          <li key={i} className="text-gray-700 text-sm">{unknown}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Regenerate Contract - Fixed at Bottom */}
-              <div className="flex-shrink-0 pt-4 mt-4 border-gray-200">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                  <input
-                    type="text"
-                    value={contractRegenPrompt}
-                    onChange={(e) => setContractRegenPrompt(e.target.value)}
-                    placeholder="Regenerate entire contract..."
-                    className="flex-1 p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 text-sm sm:text-base"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleContractRegeneration();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      console.log('🖱️ Regenerate button clicked, current state:', isRegeneratingContract);
-                      handleContractRegeneration();
-                    }}
-                    disabled={isRegeneratingContract}
-                    className={`p-3 sm:p-4 rounded-md transition cursor-pointer ${
-                      isRegeneratingContract 
-                        ? 'bg-gray-900 cursor-not-allowed' 
-                        : 'bg-black hover:bg-gray-900'
-                    }`}
-                  >
-                    {(() => {
-                      console.log('🔄 Regenerate button render - isRegeneratingContract:', isRegeneratingContract);
-                      return isRegeneratingContract ? (
-                        <LoadingSpinner size="w-4 h-4 sm:w-5 sm:h-5" />
-                      ) : (
-                        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                        </svg>
-                      );
-                    })()}
-                  </button>
-                </div>
-              </div>
+            {/* Chat Interface */}
+            <div className="flex-1 min-h-0">
+              <ChatInterface />
             </div>
 
             {/* Recipient Email Input - Fixed at Bottom */}
