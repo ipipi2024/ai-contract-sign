@@ -117,11 +117,11 @@ export const authOptions: NextAuthOptions = {
           await connectToDatabase()
           
           // Check if user exists
-          const existingUser = await User.findOne({ email: user.email })
+          let existingUser = await User.findOne({ email: user.email })
           
           if (!existingUser) {
             // Create new user from Google signin
-            await User.create({
+            const newUser = await User.create({
               email: user.email,
               name: user.name,
               image: user.image,
@@ -129,6 +129,11 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
               lastLoginAt: new Date()
             })
+            
+            // IMPORTANT: Set the MongoDB _id as the user.id
+            user.id = newUser._id.toString()
+            user.role = newUser.role
+            user.plan = newUser.plan
           } else {
             // Update existing user
             await User.findByIdAndUpdate(existingUser._id, {
@@ -137,6 +142,11 @@ export const authOptions: NextAuthOptions = {
               lastLoginAt: new Date(),
               emailVerified: existingUser.emailVerified || new Date()
             })
+            
+            // IMPORTANT: Set the MongoDB _id as the user.id
+            user.id = existingUser._id.toString()
+            user.role = existingUser.role
+            user.plan = existingUser.plan
           }
         } catch (error) {
           console.error("Error saving user:", error)
