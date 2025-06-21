@@ -28,6 +28,7 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
+  title?: string;
 }
 
 interface ChatMessage {
@@ -825,7 +826,7 @@ If there are no unknowns in the list, do not add anything.`,
             <div className="max-w-3xl mx-auto bg-white shadow-sm border border-gray-200 p-8">
               {/* Contract Header */}
               <div className="text-center mb-8 pb-6 border-b-2 border-gray-300">
-                <h1 className="text-2xl font-bold mb-2">CONTRACT</h1>
+                <h1 className="text-2xl font-bold mb-2">{contractJson.title || 'CONTRACT'}</h1>
                 <p className="text-gray-600">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p className="text-gray-600">Contract ID: {params.id}</p>
               </div>
@@ -839,22 +840,33 @@ If there are no unknowns in the list, do not add anything.`,
                   block.signatures.forEach((signature) => {
                     const underscorePattern = /_{20}/;
                     if (signature.img_url && signature.img_url.trim() !== '') {
+                      // If signed, show signature info
                       processedText = processedText.replace(
                         underscorePattern,
-                        `[Signed: ${signature.party}]`
+                        `<br/><br/>
+                          <div class="ml-4">
+                            <div class="text-sm">Name: <span class="font-normal">${signature.name || '_______________'}</span></div>
+                            <div class="text-sm">Signature: <img src="${signature.img_url}" alt="Signature" class="inline-block h-8 max-w-32 object-contain" /></div>
+                            <div class="text-sm">Date: <span class="font-normal">${signature.date || '_______________'}</span></div>
+                          </div>`
                       );
                     } else {
+                      // If not signed, show blank fields
                       processedText = processedText.replace(
                         underscorePattern,
-                        `_______________ (${signature.party})`
+                        `<br/><br/>
+                          <div class="ml-4">
+                            <div class="text-sm">Name: <span class="text-gray-400">_______________</span></div>
+                            <div class="text-sm">Signature: <span class="text-gray-400">_______________</span></div>
+                            <div class="text-sm">Date: <span class="text-gray-400">_______________</span></div>
+                          </div>`
                       );
                     }
                   });
                   
                   return (
-                    <div key={index} className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                      {processedText}
-                    </div>
+                    <div key={index} className="text-gray-800 leading-relaxed" 
+                         dangerouslySetInnerHTML={{ __html: processedText }} />
                   );
                 })}
               </div>

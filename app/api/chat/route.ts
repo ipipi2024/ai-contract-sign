@@ -33,6 +33,8 @@ BE ABSOLUTELY CERTAIN to limit your response to 50-75 words, and be concise. Do 
 Use bullet points (e.g. -) to list the unknowns. Only use bullet points for the unknowns list.
 
 Say something like: "I've done ..., in order to complete the contract I need you to provide: [bulleted list of unknowns]"
+If there are no unknowns in the list, do not say anything like this.
+Essentially, if no unknowns are listed, do not mention anything about the unknowns.
 
 Do NOT mention "PartyA" or "PartyB" in your response ever. Do NOT request signatures, that is already communicated to the user. Image URLS and signed names do NOT need to be requested, as their absence is already communicated to the user.
 
@@ -80,7 +82,9 @@ Provide a concise summary (max 100 words, 50 if possible for brevity) focusing o
 - What sections were improved
 - Key changes made to the contract
 
-Be specific and helpful. Focus on the most important changes.`;
+Be specific and helpful. Focus on the most important changes.
+
+If no unknowns are listed, do not mention anything about the unknowns.`;
     } else {
       systemPrompt = `You are an AI contract assistant helping users improve their contracts. 
 

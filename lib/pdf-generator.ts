@@ -65,7 +65,7 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
   doc.setFontSize(18);
   doc.setTextColor(textColor);
   
-  // Contract title (centered)
+  // Contract title (centered) - use the title from contractJson
   const title = contractJson.title || 'CONTRACT AGREEMENT';
   doc.text(title.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
   
@@ -134,7 +134,7 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           const afterText = parts[1] || '';
           
           // Check if we need extra space for signature
-          checkNewPage(25);
+          checkNewPage(40);
           
           // Render text before signature
           if (beforeText) {
@@ -145,73 +145,56 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           const beforeWidth = doc.getTextWidth(beforeText);
           const signatureX = marginLeft + beforeWidth;
           
-          // Draw signature line
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.3);
-          doc.line(signatureX, currentY + 1, signatureX + signatureLineLength, currentY + 1);
+          // Draw signature section with Name, Signature, Date labels
+          doc.setFont('times', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(textColor);
           
-          // Add signature image if exists
+          let signatureY = currentY;
+          
+          // Name field
+          doc.text('Name:', signatureX, signatureY);
+          if (signature.name) {
+            doc.setFont('times', 'normal');
+            doc.text(signature.name, signatureX + 20, signatureY);
+          } else {
+            doc.setFont('times', 'normal');
+            doc.text('_______________', signatureX + 20, signatureY);
+          }
+          signatureY += 14;
+          
+          // Signature field
+          doc.text('Signature:', signatureX, signatureY);
           if (signature.img_url && signature.img_url.trim() !== '') {
             try {
-              // Add signature image above the line
+              // Add signature image
               const imgWidth = 40;
               const imgHeight = 15;
               doc.addImage(
                 signature.img_url,
                 'PNG',
-                signatureX + 5,
-                currentY - imgHeight + 2,
+                signatureX + 25,
+                signatureY - imgHeight + 2,
                 imgWidth,
                 imgHeight
               );
             } catch (error) {
               console.error(`Failed to add signature image for ${signature.party}:`, error);
+              doc.text('_______________', signatureX + 25, signatureY);
             }
+          } else {
+            doc.text('_______________', signatureX + 25, signatureY);
           }
+          signatureY += 14;
           
-          // Add party label below line
-          doc.setFontSize(10);
-          doc.setTextColor(lightTextColor);
-          doc.setFont('times', 'italic');
-          
-          // Use meaningful title or name instead of Party A/Party B
-          let partyLabel = '';
-          
-          // First priority: Check if we have parties array with meaningful titles
-          if (contractJson.parties && contractJson.parties.length > 0) {
-            // Map Party A/B to actual titles from parties array
-            if (signature.party === 'Party A' && contractJson.parties[0]) {
-              partyLabel = contractJson.parties[0];
-            } else if (signature.party === 'Party B' && contractJson.parties[1]) {
-              partyLabel = contractJson.parties[1];
-            }
-          }
-          
-          // Second priority: If no title or title is still generic, use the name
-          if ((!partyLabel || partyLabel.startsWith('Party')) && signature.name) {
-            partyLabel = signature.name;
-          }
-          
-          // Final fallback: If still no label and we have a name, use it
-          // Otherwise, just use empty string to avoid showing "Party A/B"
-          if (!partyLabel) {
-            partyLabel = signature.name || '';
-          }
-          
-          // Only display if we have a meaningful label
-          if (partyLabel) {
-            doc.text(partyLabel, signatureX + 2, currentY + 5);
-          }
-          
-          // Add name and date if provided
-          if (signature.name || signature.date) {
-            doc.setFontSize(9);
-            if (signature.name) {
-              doc.text(`Name: ${signature.name}`, signatureX + 2, currentY + 9);
-            }
-            if (signature.date) {
-              doc.text(`Date: ${signature.date}`, signatureX + 2, currentY + (signature.name ? 13 : 9));
-            }
+          // Date field
+          doc.text('Date:', signatureX, signatureY);
+          if (signature.date) {
+            doc.setFont('times', 'normal');
+            doc.text(signature.date, signatureX + 20, signatureY);
+          } else {
+            doc.setFont('times', 'normal');
+            doc.text('_______________', signatureX + 20, signatureY);
           }
           
           // Reset font for remaining text
@@ -221,12 +204,12 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           
           // Render text after signature
           if (afterText) {
-            const afterX = signatureX + signatureLineLength + 2;
+            const afterX = signatureX + 80; // Give more space for signature section
             doc.text(afterText, afterX, currentY);
           }
           
-          // Adjust Y position based on signature details
-          currentY += signature.name && signature.date ? 18 : (signature.name || signature.date ? 14 : 10);
+          // Adjust Y position for signature section
+          currentY += 20;
         }
       });
       

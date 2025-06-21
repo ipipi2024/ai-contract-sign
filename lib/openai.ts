@@ -113,6 +113,7 @@ export async function generateContractJson(userPrompt: string): Promise<Contract
 Today is ${currentDate}.
 You are a contract generation assistant. You MUST return a JSON object with the following structure:
 {
+  "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
   "blocks": [
     {
       "text": "string",
@@ -125,10 +126,11 @@ You are a contract generation assistant. You MUST return a JSON object with the 
       ]
     }
   ],
-  "unknowns": ["string"]
+  "unknowns": ["string"] // e.g. Jurisdiction, Completion Date, Total Amount, etc.
 }
 
 CRITICAL REQUIREMENTS:
+- Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
 - DO NOT include any labels like "Name:", "Signature:", or "Date:" in the text
@@ -163,13 +165,19 @@ DO NOT forget to include the 2 sequences of 20 underscores separated by newlines
 
 Final Check:
 - Does the contract include a final signature block?
-- Does the contract include 2 sequences of 20 underscores separated by newlines?`;
+- Does the contract include 2 sequences of 20 underscores separated by newlines?
+
+PLEASE DO NOT FORGOT TO INCLUDE THE SIGNATURE FIELDS! THEY ARE EXTREMELY ESSENTIAL AND CANNOT BE OMITTED!
+ALWAYS INCLUDE THEM!`;
 
   const userMessage = `Please draft a contract based on this request. Pay special attention to any specific names, companies, contexts, or details mentioned and incorporate them directly into the contract text:
 
 "${userPrompt}"
 
-Remember: Use any specific names or details provided instead of generic placeholders.`;
+Remember: Use any specific names or details provided instead of generic placeholders.
+
+PLEASE DO NOT FORGOT TO INCLUDE THE SIGNATURE FIELDS! THEY ARE EXTREMELY ESSENTIAL AND CANNOT BE OMITTED!
+ALWAYS INCLUDE THEM! THE SEQUENCE OF 20 UNDERSCORES IS EXTREMELY ESSENTIAL AND CANNOT BE OMITTED! REMEMBER TO INCLUDE THEM IN THE FINAL SIGNATURE BLOCK!`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -202,6 +210,7 @@ Today is ${currentDate}.
 
 You are a contract generation assistant. You MUST return a JSON object with the following structure:
 {
+  "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
   "blocks": [
     {
       "text": "string",
@@ -218,6 +227,7 @@ You are a contract generation assistant. You MUST return a JSON object with the 
 }
 
 CRITICAL REQUIREMENTS:
+- Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
 - For signature blocks, use exactly 20 underscores (_) to indicate where signatures should go
@@ -291,8 +301,26 @@ ${JSON.stringify(contractWithoutSignatures, null, 2)}
 
 Please regenerate the ENTIRE contract according to the user's instructions below and return the complete contract in the same JSON schema format.
 
+You MUST return a JSON object with the following structure:
+{
+  "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
+  "blocks": [
+    {
+      "text": "string",
+      "signatures": [
+        {
+          "party": "string",
+          "img_url": "",
+          "index": number
+        }
+      ]
+    }
+  ],
+  "unknowns": ["string"]
+}
 
 CRITICAL REQUIREMENTS:
+- Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
 - For signature blocks, use exactly 20 underscores (_) to indicate where signatures should go
