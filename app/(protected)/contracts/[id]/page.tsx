@@ -28,6 +28,7 @@ interface ContractBlock {
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
+  title?: string;
 }
 
 interface ChatMessage {
@@ -44,6 +45,38 @@ interface ErrorModalProps {
   title: string;
   message: string;
 }
+
+// Save status type
+type SaveStatus = 'saved' | 'saving' | 'error';
+
+// Save Status Indicator Component
+const SaveStatusIndicator = ({ status }: { status: SaveStatus }) => {
+  if (status === 'saving') {
+    return (
+      <div className="flex items-center text-gray-500 text-sm">
+        <span>Saving</span>
+        <div className="flex ml-0.75 items-center mt-1.5">
+          <div className="w-0.5 h-0.5 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+          <div className="w-0.5 h-0.5 bg-gray-500 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '200ms' }}></div>
+          <div className="w-0.5 h-0.5 bg-gray-500 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '400ms' }}></div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (status === 'saved') {
+    return (
+      <div className="flex items-center text-green-600 text-sm">
+        <span>Saved</span>
+        <svg className="w-4 h-4 ml-1 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+        </svg>
+      </div>
+    );
+  }
+  
+  return null;
+};
 
 const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
   if (!isOpen) return null;
@@ -158,8 +191,74 @@ export default function ContractPage() {
   const shouldScrollToBottom = useRef(false);
   const scrollPositionRef = useRef(0);
 
+  // Save status state
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     fetchContract();
+  }, []);
+
+  // Save contract to database
+  const saveContract = async (contractData: ContractJson) => {
+    if (!contractData) return;
+    
+    setSaveStatus('saving');
+    
+    try {
+      const response = await fetch(`/api/contracts/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: JSON.stringify(contractData),
+        }),
+      });
+
+      if (response.ok) {
+        setSaveStatus('saved');
+      } else {
+        console.error('Failed to save contract');
+        setSaveStatus('error');
+        // Reset to saved after a short delay
+        setTimeout(() => setSaveStatus('saved'), 2000);
+      }
+    } catch (error) {
+      console.error('Error saving contract:', error);
+      setSaveStatus('error');
+      // Reset to saved after a short delay
+      setTimeout(() => setSaveStatus('saved'), 2000);
+    }
+  };
+
+  // Debounced save function
+  const debouncedSave = useCallback((contractData: ContractJson) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Set new timeout
+    saveTimeoutRef.current = setTimeout(() => {
+      saveContract(contractData);
+    }, 500); // 500ms delay for better responsiveness
+  }, []);
+
+  // Trigger save when contractJson changes
+  useEffect(() => {
+    if (contractJson && !isLoading) {
+      debouncedSave(contractJson);
+    }
+  }, [contractJson, debouncedSave, isLoading]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Preserve scroll position during re-renders
@@ -408,15 +507,28 @@ If there are no unknowns in the list, do not add anything.`,
           setIsRegeneratingContract(false);
           
         } else {
+          // Handle specific error types
+          const errorData = await regenerateResponse.json();
+          let errorMessage = "❌ Sorry, I encountered an error. Please try again.";
+          
+          if (regenerateResponse.status === 429) {
+            // Rate limit error
+            const retryAfter = errorData.retryAfter || '60';
+            errorMessage = `⏰ OpenAI rate limit reached. Please wait ${retryAfter} seconds and try again.`;
+          } else if (errorData.error) {
+            // Specific error message from API
+            errorMessage = `❌ ${errorData.error}`;
+          }
+          
           // Replace the loading message with error
-          const errorMessage: ChatMessage = {
+          const errorChatMessage: ChatMessage = {
             id: (Date.now() + 2).toString(),
             role: 'assistant',
-            content: "❌ Sorry, I encountered an error. Please try again.",
+            content: errorMessage,
             timestamp: new Date(),
             contractRegenerated: false
           };
-          setChatMessages(prev => [...prev, errorMessage]);
+          setChatMessages(prev => [...prev, errorChatMessage]);
           shouldScrollToBottom.current = true;
         }
       }
@@ -465,6 +577,9 @@ If there are no unknowns in the list, do not add anything.`,
           parsedContent = data.contract.content;
         }
         setContractJson(parsedContent);
+        
+        // Set save status to saved since contract was loaded from database
+        setSaveStatus('saved');
       }
     } catch (error) {
       console.error('Error fetching contract:', error);
@@ -637,7 +752,6 @@ If there are no unknowns in the list, do not add anything.`,
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
       } else {
         setError({
           title: "PDF Generation Failed",
@@ -712,7 +826,7 @@ If there are no unknowns in the list, do not add anything.`,
             <div className="max-w-3xl mx-auto bg-white shadow-sm border border-gray-200 p-8">
               {/* Contract Header */}
               <div className="text-center mb-8 pb-6 border-b-2 border-gray-300">
-                <h1 className="text-2xl font-bold mb-2">CONTRACT</h1>
+                <h1 className="text-2xl font-bold mb-2">{contractJson.title || 'CONTRACT'}</h1>
                 <p className="text-gray-600">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p className="text-gray-600">Contract ID: {params.id}</p>
               </div>
@@ -726,22 +840,33 @@ If there are no unknowns in the list, do not add anything.`,
                   block.signatures.forEach((signature) => {
                     const underscorePattern = /_{20}/;
                     if (signature.img_url && signature.img_url.trim() !== '') {
+                      // If signed, show signature info
                       processedText = processedText.replace(
                         underscorePattern,
-                        `[Signed: ${signature.party}]`
+                        `<br/><br/>
+                          <div class="ml-4">
+                            <div class="text-sm">Name: <span class="font-normal">${signature.name || '_______________'}</span></div>
+                            <div class="text-sm">Signature: <img src="${signature.img_url}" alt="Signature" class="inline-block h-8 max-w-32 object-contain" /></div>
+                            <div class="text-sm">Date: <span class="font-normal">${signature.date || '_______________'}</span></div>
+                          </div>`
                       );
                     } else {
+                      // If not signed, show blank fields
                       processedText = processedText.replace(
                         underscorePattern,
-                        `_______________ (${signature.party})`
+                        `<br/><br/>
+                          <div class="ml-4">
+                            <div class="text-sm">Name: <span class="text-gray-400">_______________</span></div>
+                            <div class="text-sm">Signature: <span class="text-gray-400">_______________</span></div>
+                            <div class="text-sm">Date: <span class="text-gray-400">_______________</span></div>
+                          </div>`
                       );
                     }
                   });
                   
                   return (
-                    <div key={index} className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                      {processedText}
-                    </div>
+                    <div key={index} className="text-gray-800 leading-relaxed" 
+                         dangerouslySetInnerHTML={{ __html: processedText }} />
                   );
                 })}
               </div>
@@ -932,41 +1057,48 @@ If there are no unknowns in the list, do not add anything.`,
 
           {/* Left: Contract Blocks */}
           <div className={`${isMobileView && activeTab !== 'contract' ? 'hidden' : ''} w-full lg:w-7/12 flex flex-col h-full`}>
-            {/* Preview and Download Buttons */}
-            <div className="mb-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => setShowPreview(true)}
-                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 flex items-center cursor-pointer transition-colors"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                Preview
-              </button>
-              <button
-                onClick={handleDownloadPDF}
-                disabled={isDownloadingPDF}
-                className={`px-4 py-2 text-sm font-medium rounded-md flex items-center cursor-pointer transition-colors ${
-                  isDownloadingPDF 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-black text-white hover:bg-gray-800'
-                }`}
-              >
-                {isDownloadingPDF ? (
-                  <>
-                    <LoadingSpinner size="w-4 h-4" />
-                    <span className="ml-2">Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download PDF
-                  </>
-                )}
-              </button>
+            {/* Preview and Download Buttons with Save Status */}
+            <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 flex items-center cursor-pointer transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Preview
+                </button>
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloadingPDF}
+                  className={`px-4 py-2 text-sm font-medium rounded-md flex items-center cursor-pointer transition-colors ${
+                    isDownloadingPDF 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-black text-white hover:bg-gray-800'
+                  }`}
+                >
+                  {isDownloadingPDF ? (
+                    <>
+                      <LoadingSpinner size="w-4 h-4" />
+                      <span className="ml-2">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download PDF
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {/* Save Status Indicator */}
+              <div className="mr-2">
+                <SaveStatusIndicator status={saveStatus} />
+              </div>
             </div>
 
             {/* Contract Blocks - Scrollable */}

@@ -15,8 +15,28 @@ export async function POST(request: NextRequest) {
     const regeneratedContract = await regenerateContract(contractJson, userPrompt);
     
     return NextResponse.json(regeneratedContract);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error regenerating contract:', error);
+    
+    // Handle rate limit errors specifically
+    if (error.code === 'rate_limit_exceeded') {
+      return NextResponse.json(
+        { 
+          error: 'OpenAI rate limit reached. Please wait a moment and try again.',
+          retryAfter: error.headers?.['retry-after'] || '60'
+        },
+        { status: 429 }
+      );
+    }
+    
+    // Handle other OpenAI API errors
+    if (error.code) {
+      return NextResponse.json(
+        { error: `OpenAI API error: ${error.message || 'Unknown error'}` },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to regenerate contract' },
       { status: 500 }

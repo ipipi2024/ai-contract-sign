@@ -84,7 +84,7 @@ function generateEmailTemplate(content: {
   };
   additionalInfo?: string;
 }) {
-  const companyName = process.env.COMPANY_NAME || 'Your Company';
+  const companyName = process.env.COMPANY_NAME || 'DreamSign';
   const companyWebsite = process.env.COMPANY_WEBSITE || process.env.NEXT_PUBLIC_BASE_URL;
   const logoUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/images/full-logo.png`;
   
