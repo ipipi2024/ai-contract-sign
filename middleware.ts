@@ -18,8 +18,8 @@ export default withAuth(
       '/contracts/help',
       '/',
     ];
-    
-    // Define public API routes (excluding auth routes)
+   
+    // Define public API routes
     const publicApiPaths = [
       '/api/contracts/validate-token',
       '/api/contracts/[id]/sign',
@@ -27,7 +27,7 @@ export default withAuth(
       '/api/contracts/[id]/pdf',
       '/api/contracts/[id]', // For fetching contract in sign page
     ];
-    
+   
     // Also allow the old contract/[id]/sign path if needed during transition
     const isDynamicSignPath = /^\/contracts\/[^\/]+\/sign/.test(pathname);
     
@@ -40,30 +40,29 @@ export default withAuth(
       return regex.test(pathname);
     });
     
-    // Allow NextAuth routes to pass through
-    if (pathname.startsWith('/api/auth')) {
-      return NextResponse.next();
-    }
-    
     if (isPublicPage || isPublicApi) {
       // Allow non-authenticated users to access contract signing routes
       return NextResponse.next();
     }
     
-    // If not authenticated and trying to access protected route
-    if (!req.nextauth.token) {
-      return NextResponse.redirect(new URL('/auth/signin', req.url));
-    }
-    
-    return NextResponse.next();
+    // If the route is not public, ensure authentication
+    return NextResponse.redirect(new URL('/auth/signin', req.url));
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
-        // This is called before the middleware function above
-        // Return true to allow the middleware to continue
-        // Return false to redirect to sign in
-        return true; // Let the middleware function handle the logic
+      authorized: ({ req, token }) => {
+        const pathname = req.nextUrl.pathname;
+        
+        // Paths that should remain publicly accessible
+        const publicPaths = ['/contracts/sign', '/thank-you', '/auth/signin', '/auth/signup', '/auth/error', '/'];
+        
+        // Check if the current path is a public one
+        if (publicPaths.some(path => pathname.startsWith(path))) {
+          return true;  // Allow non-authenticated access
+        }
+        
+        // For other routes, require authentication
+        return !!token;
       },
     },
     pages: {
@@ -81,7 +80,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - /api/auth/* (NextAuth routes) - FIXED: added leading slash
+     * - /api/contracts/* (public contract API routes) - FIXED: added leading slash
      */
-    "/((?!_next/static|_next/image|favicon.ico|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public|\\/api\\/auth|\\/api\\/contracts).*)",
   ],
 };
