@@ -650,7 +650,7 @@ If there are no unknowns in the list, do not add anything.`,
   };
 
   // Handler to update a signature field
-  const handleSignatureSave = (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
+  const handleSignatureSave = async (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
     console.log('handleSignatureSave called:', { blockIndex, signatureIndex, signatureData });
     
     setContractJson((prev) => {
@@ -689,6 +689,27 @@ If there are no unknowns in the list, do not add anything.`,
 
       return { ...prev, blocks: updatedBlocks };
     });
+
+    // After state update, make API call
+    const contractId = params.id;
+  try {
+    const response = await fetch(`/api/contracts/${contractId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'pending'
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Failed to update contract status:', error);
+      // Handle error - maybe show a toast notification
+    }
+  } catch (error) {
+    console.error('Error updating contract status:', error);
+  }
+
   };
 
   // Handler to send contract via email
