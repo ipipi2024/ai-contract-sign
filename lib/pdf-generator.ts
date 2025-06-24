@@ -134,7 +134,7 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           const afterText = parts[1] || '';
           
           // Check if we need extra space for signature
-          checkNewPage(40);
+          checkNewPage(50); // Increased from 40 to accommodate larger signature section
           
           // Render text before signature
           if (beforeText) {
@@ -150,18 +150,18 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           doc.setFontSize(10);
           doc.setTextColor(textColor);
           
-          let signatureY = currentY;
+          let signatureY = currentY + 5; // Add some top margin
           
           // Name field
           doc.text('Name:', signatureX, signatureY);
           if (signature.name) {
             doc.setFont('times', 'normal');
-            doc.text(signature.name, signatureX + 20, signatureY);
+            doc.text(signature.name, signatureX + 25, signatureY); // Increased spacing
           } else {
             doc.setFont('times', 'normal');
-            doc.text('_______________', signatureX + 20, signatureY);
+            doc.text('_____________________', signatureX + 25, signatureY); // Longer line
           }
-          signatureY += 14;
+          signatureY += 18; // Increased spacing between fields
           
           // Signature field
           doc.text('Signature:', signatureX, signatureY);
@@ -173,28 +173,28 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
               doc.addImage(
                 signature.img_url,
                 'PNG',
-                signatureX + 25,
+                signatureX + 30, // Increased left margin
                 signatureY - imgHeight + 2,
                 imgWidth,
                 imgHeight
               );
             } catch (error) {
               console.error(`Failed to add signature image for ${signature.party}:`, error);
-              doc.text('_______________', signatureX + 25, signatureY);
+              doc.text('_____________________', signatureX + 30, signatureY); // Longer line
             }
           } else {
-            doc.text('_______________', signatureX + 25, signatureY);
+            doc.text('_____________________', signatureX + 30, signatureY); // Longer line
           }
-          signatureY += 14;
+          signatureY += 18; // Increased spacing between fields
           
           // Date field
           doc.text('Date:', signatureX, signatureY);
           if (signature.date) {
             doc.setFont('times', 'normal');
-            doc.text(signature.date, signatureX + 20, signatureY);
+            doc.text(signature.date, signatureX + 25, signatureY);
           } else {
             doc.setFont('times', 'normal');
-            doc.text('_______________', signatureX + 20, signatureY);
+            doc.text('_____________________', signatureX + 25, signatureY); // Longer line
           }
           
           // Reset font for remaining text
@@ -204,12 +204,12 @@ export async function generateContractPDF(contractJson: ContractJson, contractId
           
           // Render text after signature
           if (afterText) {
-            const afterX = signatureX + 80; // Give more space for signature section
+            const afterX = signatureX + 100; // Increased space for signature section
             doc.text(afterText, afterX, currentY);
           }
           
-          // Adjust Y position for signature section
-          currentY += 20;
+          // Adjust Y position for signature section with more bottom margin
+          currentY += 35; // Increased from 20 to give more space
         }
       });
       
