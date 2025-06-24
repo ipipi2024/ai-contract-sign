@@ -19,19 +19,24 @@ interface ContractBlock {
   signatures: Signature[];
 }
 
+// Updated Party interface to match Mongoose model
+interface Party {
+  name: string;
+  email?: string;
+  role: string;
+  signed?: boolean;
+  signatureId?: string;
+}
+
+// Updated ContractJson interface
 interface ContractJson {
   blocks: ContractBlock[];
   unknowns: string[];
   title?: string;
   type?: string;
-  parties?: string[];
+  parties?: Party[]; // Changed from string[] to Party[]
 }
 
-try {
-
-} catch(error) {
-
-}
 
 export async function generateContract(requirements: {
   type: string;
@@ -113,7 +118,16 @@ export async function generateContractJson(userPrompt: string): Promise<Contract
 Today is ${currentDate}.
 You are a contract generation assistant. You MUST return a JSON object with the following structure:
 {
-  "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
+ "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
+  "type": "string", // Contract type: one of "service", "nda", "employment", "lease", "custom"
+  "parties": [
+    {
+      "name": "string", // The full name of the party (e.g., "John Smith", "ABC Corporation")
+      "email": "string", // Email if mentioned, otherwise null
+      "role": "string", // Their role in the contract (e.g., "Service Provider", "Client", "Employer", "Employee", "Disclosing Party", "Receiving Party", "Landlord", "Tenant")
+      "signed": false,
+      "signatureId": null
+    },
   "blocks": [
     {
       "text": "string",
@@ -130,6 +144,23 @@ You are a contract generation assistant. You MUST return a JSON object with the 
 }
 
 CRITICAL REQUIREMENTS:
+- EXTRACT PARTIES: Analyze the user prompt to identify all parties involved in the contract. Look for:
+  - Individual names (e.g., "John", "Sarah", "Mr. Smith")
+  - Company names (e.g., "ABC Corp", "Tech Solutions Inc")
+  - Descriptive references (e.g., "my friend", "the consultant", "the landlord")
+  - If no specific names are given, use generic descriptive names based on the contract type
+- ASSIGN APPROPRIATE ROLES: Based on the contract type and context, assign meaningful roles:
+  - Service contracts: "Service Provider" and "Client"
+  - NDAs: "Disclosing Party" and "Receiving Party"
+  - Employment: "Employer" and "Employee"
+  - Lease: "Landlord" and "Tenant"
+  - Custom: Extract roles from context
+- CONTRACT TYPE: Determine the type from the prompt content:
+  - "service" for consulting, freelance, service agreements
+  - "nda" for non-disclosure, confidentiality agreements
+  - "employment" for job, work, employment contracts
+  - "lease" for rental, property, housing agreements
+  - "custom" for anything else
 - Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
@@ -211,6 +242,15 @@ Today is ${currentDate}.
 You are a contract generation assistant. You MUST return a JSON object with the following structure:
 {
   "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
+  "type": "string", // Contract type: one of "service", "nda", "employment", "lease", "custom"
+  "parties": [
+    {
+      "name": "string", // The full name of the party (e.g., "John Smith", "ABC Corporation")
+      "email": "string", // Email if mentioned, otherwise null
+      "role": "string", // Their role in the contract (e.g., "Service Provider", "Client", "Employer", "Employee", "Disclosing Party", "Receiving Party", "Landlord", "Tenant")
+      "signed": false,
+      "signatureId": null
+    },
   "blocks": [
     {
       "text": "string",
@@ -227,6 +267,7 @@ You are a contract generation assistant. You MUST return a JSON object with the 
 }
 
 CRITICAL REQUIREMENTS:
+- PRESERVE THE EXISTING PARTIES ARRAY - do not modify the parties unless specifically instructed
 - Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
@@ -304,6 +345,15 @@ Please regenerate the ENTIRE contract according to the user's instructions below
 You MUST return a JSON object with the following structure:
 {
   "title": "string", // A brief, standard contract title (e.g., "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT") - keep it short and professional, no long descriptions
+  "type": "string", // Contract type: one of "service", "nda", "employment", "lease", "custom"
+  "parties": [
+    {
+      "name": "string", // The full name of the party (e.g., "John Smith", "ABC Corporation")
+      "email": "string", // Email if mentioned, otherwise null
+      "role": "string", // Their role in the contract (e.g., "Service Provider", "Client", "Employer", "Employee", "Disclosing Party", "Receiving Party", "Landlord", "Tenant")
+      "signed": false,
+      "signatureId": null
+    },
   "blocks": [
     {
       "text": "string",
@@ -320,6 +370,7 @@ You MUST return a JSON object with the following structure:
 }
 
 CRITICAL REQUIREMENTS:
+-- ANALYZE USER INSTRUCTIONS: If the user wants to add/modify parties, update the parties array accordingly
 - Generate a brief, standard contract title (2-4 words maximum) - examples: "NON-DISCLOSURE AGREEMENT", "SERVICE AGREEMENT", "EMPLOYMENT CONTRACT", "LEASE AGREEMENT", "PARTNERSHIP AGREEMENT"
 - Each block's text should be a complete section of the contract, include 5 - 10 blocks
 - Do NOT create information that is not provided in the user prompt. Ask the user for the information by including it in the unknowns list.
