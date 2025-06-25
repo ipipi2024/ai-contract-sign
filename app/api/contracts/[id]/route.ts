@@ -101,7 +101,8 @@ export async function PUT(
     }
 
     // Check if contract is completed (cannot edit completed contracts)
-    if (currentContract.status === 'completed') {
+    // But allow updating parties field even for completed contracts
+    if (currentContract.status === 'completed' && !body.parties) {
       return NextResponse.json(
         { error: 'Cannot edit completed contracts' },
         { status: 400 }
@@ -109,16 +110,17 @@ export async function PUT(
     }
 
     // Check if any party has signed (optional: prevent editing if anyone has signed)
+    // But allow if we're updating the parties field itself
     const hasSignatures = currentContract.parties?.some((party: any) => party.signed);
-    if (hasSignatures) {
+    if (hasSignatures && !body.parties && !body.status) {
       return NextResponse.json(
         { error: 'Cannot edit contract with existing signatures' },
         { status: 400 }
       );
     }
 
-    // Prepare update data - now including content field
-    const allowedFields = ['status', 'title', 'content', 'requirements'];
+    // Prepare update data - now including content and parties fields
+    const allowedFields = ['status', 'title', 'content', 'requirements', 'parties'];
     const updateData: any = {
       updatedAt: new Date()
     };

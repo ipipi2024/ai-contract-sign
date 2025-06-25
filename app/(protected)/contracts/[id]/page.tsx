@@ -649,68 +649,136 @@ Essentially, if no unknowns are listed, do not mention anything about the unknow
   };
 
   // Handler to update a signature field
-  const handleSignatureSave = async (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
-    console.log('handleSignatureSave called:', { blockIndex, signatureIndex, signatureData });
+const handleSignatureSave = async (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
+  console.log('handleSignatureSave called:', { blockIndex, signatureIndex, signatureData });
+  
+  // Update the local state first
+  setContractJson((prev) => {
+    if (!prev) return prev;
     
-    setContractJson((prev) => {
-      if (!prev) return prev;
-      
-      const updatedBlocks = [...prev.blocks];
+    const updatedBlocks = [...prev.blocks];
+    const block = { ...updatedBlocks[blockIndex] };
+    const signatures = [...block.signatures];
+    
+    console.log('Before update:', {
+      signatureExists: !!signatures[signatureIndex],
+      currentParty,
+      signatureParty: signatures[signatureIndex]?.party,
+      oldImgUrl: signatures[signatureIndex]?.img_url
+    });
+    
+    if (signatures[signatureIndex].party !== currentParty) {
+      console.error(`Signature at index ${signatureIndex} is not for the current party`);
+      return prev;
+    }
+
+    signatures[signatureIndex] = {
+      ...signatures[signatureIndex],
+      img_url: signatureData.img_url,
+      name: signatureData.name,
+      date: signatureData.date
+    };
+
+    block.signatures = signatures;
+    updatedBlocks[blockIndex] = block;
+
+    console.log('After update:', {
+      newImgUrl: signatures[signatureIndex].img_url,
+      signatureLength: signatures[signatureIndex].img_url.length
+    });
+
+    return { ...prev, blocks: updatedBlocks };
+  });
+
+  // After state update, make API call to update the database
+  const contractId = params.id;
+  try {
+    // First, parse the current contract to get parties information
+    let updatedContractJson = contractJson;
+    if (updatedContractJson) {
+      // Update the local copy with the new signature
+      const updatedBlocks = [...updatedContractJson.blocks];
       const block = { ...updatedBlocks[blockIndex] };
       const signatures = [...block.signatures];
       
-      console.log('Before update:', {
-        signatureExists: !!signatures[signatureIndex],
-        currentParty,
-        signatureParty: signatures[signatureIndex]?.party,
-        oldImgUrl: signatures[signatureIndex]?.img_url
-      });
-      
-      if (signatures[signatureIndex].party !== currentParty) {
-        console.error(`Signature at index ${signatureIndex} is not for the current party`);
-        return prev;
-      }
-
       signatures[signatureIndex] = {
         ...signatures[signatureIndex],
         img_url: signatureData.img_url,
         name: signatureData.name,
         date: signatureData.date
       };
-
+      
       block.signatures = signatures;
       updatedBlocks[blockIndex] = block;
-
-      console.log('After update:', {
-        newImgUrl: signatures[signatureIndex].img_url,
-        signatureLength: signatures[signatureIndex].img_url.length
-      });
-
-      return { ...prev, blocks: updatedBlocks };
-    });
-
-    // After state update, make API call
-    const contractId = params.id;
-  try {
-    const response = await fetch(`/api/contracts/${contractId}`, {
+      updatedContractJson = { ...updatedContractJson, blocks: updatedBlocks };
+    }
+    
+    // Get the contract from database to access parties field
+    const getResponse = await fetch(`/api/contracts/${contractId}`);
+    if (!getResponse.ok) {
+      throw new Error('Failed to fetch contract');
+    }
+    
+    const { contract } = await getResponse.json();
+    
+    // Find which party is signing (based on currentParty)
+    const partyIndex = contract.parties?.findIndex((party: any) => 
+      party.role === (currentParty === 'PartyA' ? 'Disclosing Party' : 'Receiving Party') ||
+      party.name === signatureData.name
+    );
+    
+    // Update parties array
+    let updatedParties = contract.parties || [];
+    if (partyIndex !== undefined && partyIndex >= 0) {
+      updatedParties[partyIndex] = {
+        ...updatedParties[partyIndex],
+        signed: true,
+        signatureId: `${blockIndex}-${signatureIndex}`, // Store reference to signature location
+        signedAt: new Date().toISOString()
+      };
+    }
+    
+    // Check if all parties have signed
+    const allPartiesSigned = updatedParties.every((party: any) => party.signed);
+    const newStatus = allPartiesSigned ? 'completed' : 'pending';
+    
+    // Update the contract with new content, parties, and status
+    const updateResponse = await fetch(`/api/contracts/${contractId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status: 'pending'
+        content: JSON.stringify(updatedContractJson),
+        parties: updatedParties,
+        status: newStatus
       })
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Failed to update contract status:', error);
-      // Handle error - maybe show a toast notification
+    if (!updateResponse.ok) {
+      const error = await updateResponse.json();
+      console.error('Failed to update contract:', error);
+      setError({
+        title: "Failed to Save Signature",
+        message: error.error || "Failed to save signature. Please try again."
+      });
+    } else {
+      // Update local contract state with new parties info
+      setContract(prev => prev ? {
+        ...prev,
+        parties: updatedParties,
+        status: newStatus
+      } : null);
+      
+      // Show success message
+      console.log('Signature saved successfully');
     }
   } catch (error) {
-    console.error('Error updating contract status:', error);
+    console.error('Error updating contract:', error);
+    setError({
+      title: "Error",
+      message: "Failed to save signature. Please try again."
+    });
   }
-
-  };
-
+};
   // Handler to send contract via email
   const handleSendContract = async () => {
     if (!recipientEmail) {
