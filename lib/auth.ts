@@ -42,7 +42,15 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true, // Allow linking if email exists
+      allowDangerousEmailAccountLinking: true,
+      // Add authorization params for production
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: "credentials",
@@ -58,7 +66,6 @@ export const authOptions: NextAuthOptions = {
         try {
           await connectToDatabase()
           
-          // Use select('+password') since password has select: false
           const user = await User.findOne({ email: credentials.email })
             .select('+password')
             .lean()
@@ -67,7 +74,6 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid email or password")
           }
 
-          // Check if user has a password (might be Google-only user)
           if (!user.password) {
             throw new Error("Please sign in with Google")
           }
@@ -81,7 +87,6 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid email or password")
           }
 
-          // Update last login
           await User.findByIdAndUpdate(user._id, {
             lastLoginAt: new Date()
           })
@@ -96,7 +101,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error("Auth error:", error)
-          throw error // Let NextAuth handle the error
+          throw error
         }
       }
     })
@@ -104,10 +109,10 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
 
-  // Cookie configuration for custom domain
+  // Simplified cookie configuration for production
   cookies: {
     sessionToken: {
       name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
@@ -116,36 +121,14 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // Let the browser handle the domain
-        domain: undefined
-      }
-    },
-    callbackUrl: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
-      options: {
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      }
-    },
-    csrfToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Host-' : ''}next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        // IMPORTANT: Remove domain setting to let browser handle it
       }
     },
   },
 
-  // Force secure cookies in production
-  useSecureCookies: process.env.NODE_ENV === 'production',
-
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
-    // signUp is not a NextAuth page - handle it separately
   },
 
   callbacks: {
@@ -153,20 +136,16 @@ export const authOptions: NextAuthOptions = {
       console.log('SignIn Callback:', {
         provider: account?.provider,
         email: user.email,
-        userId: user.id
+        hasGoogleId: !!account?.providerAccountId
       });
 
       if (account?.provider === "google") {
         try {
           await connectToDatabase()
-          console.log('Connected to database for Google sign-in');
           
-          // Check if user exists
           let existingUser = await User.findOne({ email: user.email })
-          console.log('Existing user:', existingUser ? 'found' : 'not found');
           
           if (!existingUser) {
-            // Create new user from Google signin
             const newUser = await User.create({
               email: user.email,
               name: user.name,
@@ -176,14 +155,10 @@ export const authOptions: NextAuthOptions = {
               lastLoginAt: new Date()
             })
             
-            console.log('New user created:', newUser._id.toString());
-            
-            // IMPORTANT: Set the MongoDB _id as the user.id
             user.id = newUser._id.toString()
             user.role = newUser.role
             user.plan = newUser.plan
           } else {
-            // Update existing user
             await User.findByIdAndUpdate(existingUser._id, {
               googleId: account.providerAccountId,
               image: user.image || existingUser.image,
@@ -191,9 +166,6 @@ export const authOptions: NextAuthOptions = {
               emailVerified: existingUser.emailVerified || new Date()
             })
             
-            console.log('Existing user updated:', existingUser._id.toString());
-            
-            // IMPORTANT: Set the MongoDB _id as the user.id
             user.id = existingUser._id.toString()
             user.role = existingUser.role
             user.plan = existingUser.plan
@@ -207,21 +179,16 @@ export const authOptions: NextAuthOptions = {
     },
     
     async jwt({ token, user, account, trigger, session }) {
-      // Initial sign in
       if (user) {
         token.id = user.id
         token.role = user.role || 'user'
         token.plan = user.plan || 'free'
-        
-        console.log('JWT token created for user:', user.id);
       }
       
-      // Update token if user data changes
       if (trigger === "update" && session) {
         token = { ...token, ...session }
       }
       
-      // Refresh user data periodically
       if (token.id) {
         try {
           await connectToDatabase()
@@ -247,10 +214,7 @@ export const authOptions: NextAuthOptions = {
       return session
     },
 
-    // Add redirect callback to handle custom domain properly
     async redirect({ url, baseUrl }) {
-      console.log('Redirect callback:', { url, baseUrl });
-      
       // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`
       
@@ -261,13 +225,8 @@ export const authOptions: NextAuthOptions = {
     }
   },
 
-  // Enable debug logging in production temporarily to troubleshoot
-  debug: true, // Set to false once issue is resolved
+  // Set debug to false in production
+  debug: process.env.NODE_ENV === 'development',
 
   secret: process.env.NEXTAUTH_SECRET,
-  
-  // Explicitly set the base URL from environment variable
-  ...(process.env.NEXTAUTH_URL && { 
-    baseUrl: process.env.NEXTAUTH_URL 
-  }),
 }

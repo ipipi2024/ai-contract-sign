@@ -41,7 +41,7 @@ export async function POST(
     // Update contract
     await Contract.findByIdAndUpdate(id, {
       content: JSON.stringify(contractJson),
-      status: 'signed',
+      status: 'pending',
       signedAt: timestamp,
       updatedAt: new Date()
     });

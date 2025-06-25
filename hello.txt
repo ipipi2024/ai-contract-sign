@@ -1,6 +1,7 @@
 Things to Do:
 1.For block regeneration, make it so that it does not regenerate the entire contract again
+2. save image url when signed and not only when contract is finalized or sent for signing
 
 *Bugs:
-1.When regenerating, signature image crash and some of the existing feilds changes
-2.When page is refreshed, the updates states are not saved
+1.When regenerating, signature image crash and some of the existing feilds changes-done
+2.When page is refreshed, the updates states are not saved - done

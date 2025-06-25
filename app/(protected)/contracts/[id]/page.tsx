@@ -476,10 +476,9 @@ If you're unsure, set shouldRegenerate to false and ask the user if they want yo
               
 Please provide a brief summary (max 100 words, 50 if possible for brevity) of what was added or changed in the contract. Focus on the key improvements or additions made.
 
-After your summary, please add:
-"In order to finish the contract, I need:" followed by a bullet point list of the unknowns.
-
-If there are no unknowns in the list, do not add anything.`,
+After your summary, say something like: "I've done ..., in order to complete the contract I need you to provide: [bulleted list of unknowns]"
+However, and this is CRITICAL, if there are no unknowns in the list, do not say anything like this.
+Essentially, if no unknowns are listed, do not mention anything about the unknowns and do not include the phrase "in order to complete the contract I need you to provide:".`,
               contractJson: newContractJson,
               chatHistory: chatMessages,
               isSummary: true
