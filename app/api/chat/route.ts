@@ -84,7 +84,9 @@ Provide a concise summary (max 100 words, 50 if possible for brevity) focusing o
 
 Be specific and helpful. Focus on the most important changes.
 
-If no unknowns are listed, do not mention anything about the unknowns.`;
+Say something like: "I've done ..., in order to complete the contract I need you to provide: [bulleted list of unknowns]"
+If there are no unknowns in the list, do not say anything like this.
+Essentially, if no unknowns are listed, do not mention anything about the unknowns.`;
     } else {
       systemPrompt = `You are an AI contract assistant helping users improve their contracts. 
 
