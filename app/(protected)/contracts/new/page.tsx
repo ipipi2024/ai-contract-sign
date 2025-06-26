@@ -6,6 +6,9 @@ import ContractBlock from "@/components/ContractBlock";
 import SignatureModal from "@/components/SignatureModal";
 import ContractSummary from "@/components/ContractSummary";
 import { server_log } from '@/app/actions/log';
+import FileUploadZone from "@/components/FileUploadZone";
+import AttachmentList from "@/components/AttachmentList";
+import { parseDocument } from "@/lib/documentParser";
 
 import Link from "next/link";
 
@@ -14,6 +17,16 @@ interface ErrorModalProps {
   onClose: () => void;
   title: string;
   message: string;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  content?: string;
+  loading?: boolean;
+  error?: string;
 }
 
 const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
@@ -53,14 +66,150 @@ export default function NewContractPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [prompt, setPrompt] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pastedContent, setPastedContent] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const SUPPORTED_TYPES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'text/plain',
+    'text/markdown',
+    'image/jpeg',
+    'image/png',
+    'image/jpg'
+  ];
+
+  const handleFileSelect = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    
+    for (const file of fileArray) {
+      // Validate file
+      if (!SUPPORTED_TYPES.includes(file.type)) {
+        setError({
+          title: "Unsupported File Type",
+          message: `"${file.name}" is not a supported file type. Please upload PDF, DOCX, TXT, MD, JPG, or PNG files.`
+        });
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        setError({
+          title: "File Too Large",
+          message: `"${file.name}" exceeds the 10MB file size limit.`
+        });
+        continue;
+      }
+
+      // Add file to attachments with loading state
+      const attachment: Attachment = {
+        id: `${Date.now()}-${Math.random()}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        loading: true
+      };
+
+      setAttachments(prev => [...prev, attachment]);
+
+      try {
+        // Parse the document
+        const content = await parseDocument(file);
+        
+        setAttachments(prev => 
+          prev.map(att => 
+            att.id === attachment.id 
+              ? { ...att, content, loading: false }
+              : att
+          )
+        );
+      } catch (error) {
+        setAttachments(prev => 
+          prev.map(att => 
+            att.id === attachment.id 
+              ? { ...att, loading: false, error: "Failed to parse document" }
+              : att
+          )
+        );
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData('text');
+    
+    // If pasted content is longer than 1000 characters, offer to make it an attachment
+    if (pastedText.length > 1000) {
+      e.preventDefault();
+      setPastedContent(pastedText);
+      setShowPasteModal(true);
+    }
+  };
+
+  const convertPasteToAttachment = () => {
+    const attachment: Attachment = {
+      id: `paste-${Date.now()}`,
+      name: `Pasted content ${new Date().toLocaleTimeString()}.txt`,
+      size: new Blob([pastedContent]).size,
+      type: 'text/plain',
+      content: pastedContent
+    };
+    
+    setAttachments(prev => [...prev, attachment]);
+    setShowPasteModal(false);
+    setPastedContent("");
+  };
+
+  const keepAsText = () => {
+    setPrompt(prev => prev + pastedContent);
+    setShowPasteModal(false);
+    setPastedContent("");
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(att => att.id !== id));
+  };
+
+  const buildCombinedPrompt = () => {
+    let combinedPrompt = prompt.trim();
+    
+    if (attachments.length > 0) {
+      combinedPrompt += "\n\n--- Attached Documents ---\n\n";
+      
+      attachments.forEach((attachment, index) => {
+        if (attachment.content && !attachment.error) {
+          combinedPrompt += `Document ${index + 1}: ${attachment.name}\n`;
+          combinedPrompt += "---\n";
+          combinedPrompt += attachment.content;
+          combinedPrompt += "\n\n";
+        }
+      });
+    }
+    
+    return combinedPrompt;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!prompt.trim()) {
+    const hasValidAttachments = attachments.some(att => att.content && !att.error);
+    
+    if (!prompt.trim() && !hasValidAttachments) {
       setError({
         title: "Missing Description",
-        message: "Please enter a description of the contract you need."
+        message: "Please enter a description of the contract you need or upload relevant documents."
+      });
+      return;
+    }
+
+    // Check if any attachments are still loading
+    if (attachments.some(att => att.loading)) {
+      setError({
+        title: "Files Still Processing",
+        message: "Please wait for all files to finish processing before generating the contract."
       });
       return;
     }
@@ -68,11 +217,13 @@ export default function NewContractPage() {
     setLoading(true);
 
     try {
+      const combinedPrompt = buildCombinedPrompt();
+      
       const response = await fetch("/api/contracts/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: prompt.trim(),
+          prompt: combinedPrompt,
         }),
       });
 
@@ -114,7 +265,6 @@ export default function NewContractPage() {
             <h1 className="text-3xl font-bold text-gray-900">
               Generate Contract with AI
             </h1>
-            
           </div>
 
           {/* Form */}
@@ -122,8 +272,6 @@ export default function NewContractPage() {
             onSubmit={handleSubmit}
             className="bg-white rounded-lg shadow-md p-6 space-y-6"
           >
-            
-
             {/* Contract Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -132,6 +280,7 @@ export default function NewContractPage() {
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
+                onPaste={handlePaste}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -140,7 +289,6 @@ export default function NewContractPage() {
                 }}
                 className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 h-40 resize-none"
                 placeholder="Create a freelance contract between ABC Corp and John Smith for website development. $5,000 payment in two milestones, 6-week timeline, includes hosting setup and training."
-                required
               />
               <div className="text-sm text-gray-500 mt-2 flex justify-between">
                 <span>{prompt.length} characters</span>
@@ -148,7 +296,29 @@ export default function NewContractPage() {
               </div>
             </div>
 
-            
+            {/* File Upload Zone */}
+            <FileUploadZone
+              onFileSelect={handleFileSelect}
+              fileInputRef={fileInputRef}
+            />
+
+            {/* Attachments List */}
+            {attachments.length > 0 && (
+              <AttachmentList
+                attachments={attachments}
+                onRemove={removeAttachment}
+              />
+            )}
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png"
+              onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+              className="hidden"
+            />
 
             {/* Info Box */}
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
@@ -178,6 +348,7 @@ export default function NewContractPage() {
                     <li>Generates appropriate legal clauses</li>
                     <li>Includes standard terms and conditions</li>
                     <li>Adds dispute resolution and termination clauses</li>
+                    <li>Analyzes uploaded documents for context</li>
                   </ul>
                 </div>
               </div>
@@ -193,7 +364,7 @@ export default function NewContractPage() {
               </Link>
               <button
                 type="submit"
-                disabled={loading || !prompt.trim()}
+                disabled={loading || (!prompt.trim() && attachments.length === 0)}
                 className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
               >
                 {loading ? (
@@ -236,6 +407,35 @@ export default function NewContractPage() {
         title={error?.title || ""}
         message={error?.message || ""}
       />
+
+      {/* Paste Modal */}
+      {showPasteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black opacity-50"></div>
+          <div className="relative bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Large Text Detected
+            </h3>
+            <p className="text-gray-600 mb-6">
+              You've pasted {pastedContent.length} characters. Would you like to add this as an attachment instead?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={keepAsText}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Keep as Text
+              </button>
+              <button
+                onClick={convertPasteToAttachment}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Make Attachment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

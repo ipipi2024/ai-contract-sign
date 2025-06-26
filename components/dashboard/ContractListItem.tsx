@@ -11,7 +11,7 @@ export function ContractListItem({ contract }: ContractListItemProps) {
   return (
     <Link
       href={`/contracts/${contract._id}`}
-      className="block p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+      className="block p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-50 transition-colors"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">

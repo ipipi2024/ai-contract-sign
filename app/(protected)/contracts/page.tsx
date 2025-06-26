@@ -203,8 +203,8 @@ export default function ContractsPage() {
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-md ${
                   viewMode === 'list' 
-                    ? 'bg-gray-200 dark:bg-gray-700' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-gray-200 dark:bg-gray-200' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-100'
                 }`}
                 title="List view"
               >
@@ -216,8 +216,8 @@ export default function ContractsPage() {
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-md ${
                   viewMode === 'grid' 
-                    ? 'bg-gray-200 dark:bg-gray-700' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-gray-200 dark:bg-gray-200' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-100'
                 }`}
                 title="Grid view"
               >
@@ -300,7 +300,7 @@ export default function ContractsPage() {
                 className="block"
               >
                 <div 
-                  className="grid grid-cols-12 gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors items-center"
+                  className="grid grid-cols-12 gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-50 transition-colors items-center"
                   style={{ color: 'var(--foreground)' }}
                 >
                   <div className="col-span-5 flex items-center space-x-3">
