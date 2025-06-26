@@ -316,7 +316,7 @@ export default function ContractPage() {
       {showSignatureFor && (
         <SignatureModal
           onClose={() => setShowSignatureFor(null)}
-          onSave={(signatureData) => {
+          onSave={(signatureData: { img_url: string; name: string; date: string }) => {
             const { blockIndex, signatureIndex } = showSignatureFor;
             handleSignatureSave(blockIndex, signatureIndex, signatureData);
             setShowSignatureFor(null);
