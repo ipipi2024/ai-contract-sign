@@ -126,13 +126,13 @@ export default function Header({ authenticated = true }: HeaderProps) {
             <nav className="flex items-center space-x-2">
               <Link 
                 href="/auth/signin" 
-                className="px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all font-medium"
+                className="px-3 md:px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all text-sm md:text-base font-medium"
               >
                 Sign In
               </Link>
               <Link
                 href="/auth/signup"
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-all font-medium shadow-sm hover:shadow"
+                className="bg-blue-600 text-white px-3 md:px-5 py-2 rounded-lg hover:bg-blue-700 transition-all text-sm md:text-base font-medium shadow-sm hover:shadow"
               >
                 Get Started
               </Link>
@@ -143,27 +143,27 @@ export default function Header({ authenticated = true }: HeaderProps) {
 
       {/* Mobile Menu - Authenticated Users */}
       {authenticated && isMobileMenuOpen && (
-        <div className="md:hidden bg-gray-50 border-t border-gray-200">
-          <div className="px-4 py-3 space-y-1">
+        <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
+          <div className="px-4 py-2 space-y-1 flex flex-col justify-center min-h-[200px]">
             <Link 
               href="/dashboard" 
-              className="block px-4 py-3 rounded-lg text-base font-medium text-gray-700 hover:bg-white hover:text-gray-900 transition-all"
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
             </Link>
             <Link 
               href="/contracts" 
-              className="block px-4 py-3 rounded-lg text-base font-medium text-gray-700 hover:bg-white hover:text-gray-900 transition-all"
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Contracts
             </Link>
             
-            <div className="pt-2">
+            <div className="pt-1">
               <Link 
                 href="/contracts/new" 
-                className="block px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all text-center"
+                className="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Create Contract
@@ -172,7 +172,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
             
             <hr className="my-2" />
             
-            <div className="px-4 py-2">
+            <div className="px-3 py-2">
               <p className="text-sm font-medium text-gray-900">{session?.user?.name || 'User'}</p>
               <p className="text-xs text-gray-500">{session?.user?.email}</p>
             </div>
@@ -182,7 +182,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                 setIsMobileMenuOpen(false)
                 handleSignOut()
               }}
-              className="block w-full text-left px-4 py-3 rounded-lg text-base font-medium text-gray-700 hover:bg-white hover:text-gray-900 transition-all"
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
             >
               Sign out
             </button>
