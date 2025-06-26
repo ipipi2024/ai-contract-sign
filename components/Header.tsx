@@ -69,7 +69,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                 <div className="ml-4 pl-4 border-l border-gray-200">
                   <Link
                     href="/contracts/new"
-                    className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-all font-medium shadow-sm hover:shadow"
+                    className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-all text-sm font-medium shadow-sm hover:shadow"
                   >
                     Create Contract
                   </Link>
@@ -163,7 +163,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
             <div className="pt-2">
               <Link 
                 href="/contracts/new" 
-                className="block px-4 py-3 rounded-lg text-base font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all text-center"
+                className="block px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all text-center"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Create Contract
