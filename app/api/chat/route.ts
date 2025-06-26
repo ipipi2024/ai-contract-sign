@@ -109,7 +109,7 @@ Respond in a friendly, conversational tone.`;
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
@@ -128,4 +128,4 @@ Respond in a friendly, conversational tone.`;
       { status: 500 }
     );
   }
-} 
+}

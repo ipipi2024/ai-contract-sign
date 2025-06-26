@@ -1,9 +1,55 @@
 import OpenAI from 'openai';
 
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Replace with your actual OpenAI API key
 });
+
+// List available models (run this once to see what's available)
+const listModels = async () => {
+  try {
+    const { data: models } = await openai.models.list();
+    console.log('Available models:', models.map(m => m.id));
+    
+    // Fetch rate limits for each model using minimal token-burn requests
+    const rateLimitPromises = models.map(async (model) => {
+      try {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: model.id,
+            messages: [{ role: "system", content: "" }],
+            max_tokens: 0
+          })
+        });
+        
+        return {
+          model: model.id,
+          rpm: response.headers.get("x-ratelimit-limit-requests") || "unknown",
+          tpm: response.headers.get("x-ratelimit-limit-tokens") || "unknown"
+        };
+      } catch (error) {
+        return {
+          model: model.id,
+          rpm: "Error",
+          tpm: "Error"
+        };
+      }
+    });
+    
+    const rateLimits = await Promise.all(rateLimitPromises);
+    console.table(rateLimits);
+    
+  } catch (error) {
+    console.error('Error listing models:', error);
+  }
+};
+
+// Uncomment the line below to list models + rate limits when this file is imported
+// listModels();
 
 // TypeScript interfaces for contract structure
 interface Signature {
@@ -37,6 +83,65 @@ interface ContractJson {
   parties?: Party[]; // Changed from string[] to Party[]
 }
 
+// Model fallback configuration
+const MODEL_FALLBACKS_GENERATE = [
+  "gpt-4o",           // Primary model for contract generation
+  "gpt-4o-mini",      // Fallback 1
+  "gpt-4-turbo",      // Fallback 2
+  "gpt-3.5-turbo"     // Fallback 3 (last resort)
+];
+
+const MODEL_FALLBACKS_REGENERATE = [
+  "gpt-4o-mini",      // Primary model for contract regeneration
+  "gpt-4o",           // Fallback 1
+  "gpt-4-turbo",      // Fallback 2
+  "gpt-3.5-turbo"     // Fallback 3 (last resort)
+];
+
+// Helper function to make OpenAI request with model fallbacks
+async function makeOpenAIRequest(
+  messages: any[],
+  modelFallbacks: string[],
+  options: { temperature?: number; max_tokens?: number } = {}
+) {
+  let lastError: any;
+  
+  for (let i = 0; i < modelFallbacks.length; i++) {
+    const model = modelFallbacks[i];
+    
+    try {
+      console.log(`Attempting request with model: ${model}`);
+      
+      const completion = await openai.chat.completions.create({
+        model,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.max_tokens,
+      });
+      
+      return completion;
+      
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a rate limit error
+      if (error.code === 'rate_limit_exceeded' || error.status === 429) {
+        console.log(`Rate limit hit for ${model}, trying next model...`);
+        
+        // If this isn't the last model, continue to next
+        if (i < modelFallbacks.length - 1) {
+          continue;
+        }
+      }
+      
+      // For other errors or if we've tried all models, throw the error
+      throw error;
+    }
+  }
+  
+  // If we get here, all models failed
+  throw lastError;
+}
 
 export async function generateContract(requirements: {
   type: string;
@@ -63,8 +168,7 @@ Format the contract professionally with clear sections and subsections.`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o', // You can also use 'gpt-4', 'gpt-3.5-turbo', etc.
-      max_tokens: 4000,
+      model: 'gpt-4o-mini', 
       messages: [{
         role: 'user',
         content: prompt
@@ -210,14 +314,10 @@ Remember: Use any specific names or details provided instead of generic placehol
 PLEASE DO NOT FORGOT TO INCLUDE THE SIGNATURE FIELDS! THEY ARE EXTREMELY ESSENTIAL AND CANNOT BE OMITTED!
 ALWAYS INCLUDE THEM! THE SEQUENCE OF 20 UNDERSCORES IS EXTREMELY ESSENTIAL AND CANNOT BE OMITTED! REMEMBER TO INCLUDE THEM IN THE FINAL SIGNATURE BLOCK!`;
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: systemPrompt.trim() },
-      { role: "user", content: userMessage },
-    ],
-    temperature: 0.7,
-  });
+  const completion = await makeOpenAIRequest([
+    { role: "system", content: systemPrompt.trim() },
+    { role: "user", content: userMessage },
+  ], MODEL_FALLBACKS_GENERATE);
 
   // Clean the response and parse as JSON
   const text = completion.choices[0].message.content;
@@ -263,7 +363,7 @@ You are a contract generation assistant. You MUST return a JSON object with the 
       ]
     }
   ],
-  "unknowns": ["string"]
+  "unknowns": ["string"] // First letter of each unknown should be capitalized
 }
 
 CRITICAL REQUIREMENTS:
@@ -301,7 +401,7 @@ User instructions: "${userInstructions}"
 `;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     messages: [{ role: "system", content: systemPrompt.trim() }],
   });
   
@@ -404,44 +504,22 @@ Return ONLY the JSON (no extra commentary or markdown formatting).
 User instructions: "${userInstructions}"
 `;
 
-  // Retry logic with exponential backoff
-  const maxRetries = 3;
-  let lastError: any;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: systemPrompt.trim() }],
-      });
-      
-      const text = completion.choices[0].message.content;
-      const cleanedText = cleanJsonResponse(text || '');
-      const regeneratedContract = JSON.parse(cleanedText);
-      
-      // Repopulate signatures from the original contract
-      return repopulateSignatures(regeneratedContract, contractJson);
-      
-    } catch (error: any) {
-      lastError = error;
-      
-      // Check if it's a rate limit error
-      if (error.code === 'rate_limit_exceeded' && attempt < maxRetries) {
-        const retryAfter = error.headers?.['retry-after-ms'] || error.headers?.['retry-after'] || 1000;
-        const delay = Math.min(parseInt(retryAfter) || 1000, 10000); // Cap at 10 seconds
-        
-        console.log(`Rate limit hit, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      
-      // For other errors or max retries reached, throw the error
-      throw error;
-    }
+  try {
+    const completion = await makeOpenAIRequest([
+      { role: "system", content: systemPrompt.trim() },
+    ], MODEL_FALLBACKS_REGENERATE);
+    
+    const text = completion.choices[0].message.content;
+    const cleanedText = cleanJsonResponse(text || '');
+    const regeneratedContract = JSON.parse(cleanedText);
+    
+    // Repopulate signatures from the original contract
+    return repopulateSignatures(regeneratedContract, contractJson);
+    
+  } catch (error: any) {
+    console.error('Error regenerating contract:', error);
+    throw error;
   }
-  
-  // If we get here, all retries failed
-  throw lastError;
 }
 
 // Helper function to repopulate signatures after contract regeneration
@@ -514,7 +592,7 @@ Return ONLY the JSON array, no other text.
   const userMessage = `Summarize this contract as a JSON array of exactly 4 strings:\n\n${JSON.stringify(contractJson, null, 2)}`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     messages: [
       { role: "system", content: systemPrompt.trim() },
       { role: "user", content: userMessage },

@@ -30,7 +30,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-signature-canvas": "^1.0.6",
-    "signature_pad": "^5.0.9"
+    "signature_pad": "^5.0.9",
+    "typewriter-effect": "^2.22.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
