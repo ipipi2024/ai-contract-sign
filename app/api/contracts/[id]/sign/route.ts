@@ -1,3 +1,4 @@
+
 // app/api/contracts/[id]/sign/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
@@ -41,7 +42,7 @@ export async function POST(
     // Update contract
     await Contract.findByIdAndUpdate(id, {
       content: JSON.stringify(contractJson),
-      status: 'pending',
+      status: 'completed',
       signedAt: timestamp,
       updatedAt: new Date()
     });

@@ -1,3 +1,4 @@
+//app/(protected)/contracts/[id]/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";

@@ -1,3 +1,5 @@
+//app/(public)/contracts/sign/page.tsx
+
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
@@ -165,63 +167,151 @@ function SignContractContent() {
     }
   };
 
-  // Handler to update a signature field
-  const handleSignatureSave = (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
-    setContractJson((prev) => {
-      if (!prev) return prev;
-      
-      const updatedBlocks = [...prev.blocks];
-      const block = { ...updatedBlocks[blockIndex] };
-      const signatures = [...block.signatures];
-      
-      if (signatures[signatureIndex].party !== currentParty) {
-        console.error(`Signature at index ${signatureIndex} is not for the current party`);
-        return prev;
-      }
+// Updated handleSignatureSave function for /app/(public)/contracts/sign/page.tsx
 
-      signatures[signatureIndex] = {
-        ...signatures[signatureIndex],
-        img_url: signatureData.img_url,
-        name: signatureData.name,
-        date: signatureData.date
-      };
+const handleSignatureSave = async (blockIndex: number, signatureIndex: number, signatureData: { img_url: string; name: string; date: string }) => {
+  if (!contractJson || !contractId) return;
 
-      block.signatures = signatures;
-      updatedBlocks[blockIndex] = block;
-
-      return { ...prev, blocks: updatedBlocks };
-    });
-  };
-
-  const handleFinalizeContract = async () => {
-    if (!contractJson || !contractId || isFinalizing) return;
-
-    const hasBlankSignatures = contractJson.blocks.some((block) =>
-      block.signatures.some((s) => s.party === currentParty && s.img_url === "")
-    );
-
-    if (hasBlankSignatures) {
-      setError({
-        title: "Missing Signatures",
-        message: "Please sign all your designated signature fields (shown in blue) before finalizing."
-      });
-      return;
+  // Update local state first
+  setContractJson((prev) => {
+    if (!prev) return prev;
+    
+    const updatedBlocks = [...prev.blocks];
+    const block = { ...updatedBlocks[blockIndex] };
+    const signatures = [...block.signatures];
+    
+    if (signatures[signatureIndex].party !== currentParty) {
+      console.error(`Signature at index ${signatureIndex} is not for the current party`);
+      return prev;
     }
 
-    setIsFinalizing(true);
-    try {
-      const response = await fetch(`/api/contracts/${contractId}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contractJson: contractJson,
-          timestamp: new Date().toISOString(),
-          token: token
-        }),
-      });
+    signatures[signatureIndex] = {
+      ...signatures[signatureIndex],
+      img_url: signatureData.img_url,
+      name: signatureData.name,
+      date: signatureData.date
+    };
 
-      if (response.ok) {
-        // Send finalized contract email
+    block.signatures = signatures;
+    updatedBlocks[blockIndex] = block;
+
+    return { ...prev, blocks: updatedBlocks };
+  });
+
+  // Update in database
+  try {
+    const updatedContractJson = { ...contractJson };
+    const updatedBlocks = [...updatedContractJson.blocks];
+    const block = { ...updatedBlocks[blockIndex] };
+    const signatures = [...block.signatures];
+    
+    signatures[signatureIndex] = {
+      ...signatures[signatureIndex],
+      img_url: signatureData.img_url,
+      name: signatureData.name,
+      date: signatureData.date
+    };
+    
+    block.signatures = signatures;
+    updatedBlocks[blockIndex] = block;
+    updatedContractJson.blocks = updatedBlocks;
+
+    // First, fetch the current contract to get parties information
+    const contractResponse = await fetch(`/api/contracts/${contractId}`);
+    if (!contractResponse.ok) {
+      throw new Error('Failed to fetch contract');
+    }
+    
+    const { contract: currentContract } = await contractResponse.json();
+    
+    // Update parties array
+    let updatedParties = currentContract.parties || [];
+    const partyIndex = updatedParties.findIndex((party: any) => 
+      party.role === (currentParty === 'PartyA' ? 'Disclosing Party' : 'Receiving Party') ||
+      party.name === signatureData.name ||
+      party.email === recipientEmail
+    );
+    
+    if (partyIndex !== undefined && partyIndex >= 0) {
+      updatedParties[partyIndex] = {
+        ...updatedParties[partyIndex],
+        signed: true,
+        signatureId: `${blockIndex}-${signatureIndex}`,
+        signedAt: new Date().toISOString()
+      };
+    }
+    
+    const allPartiesSigned = updatedParties.every((party: any) => party.signed);
+    const newStatus = allPartiesSigned ? 'completed' : 'pending';
+    
+    // Update the contract with new content, parties, and status
+    const updateResponse = await fetch(`/api/contracts/${contractId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: JSON.stringify(updatedContractJson),
+        parties: updatedParties,
+        status: newStatus
+      })
+    });
+
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update contract');
+    }
+    
+  } catch (error) {
+    console.error('Error updating contract:', error);
+    setError({
+      title: "Failed to Save Signature",
+      message: "Failed to save signature. Please try again."
+    });
+  }
+};
+
+ const handleFinalizeContract = async () => {
+  if (!contractJson || !contractId || isFinalizing) return;
+
+  const hasBlankSignatures = contractJson.blocks.some((block) =>
+    block.signatures.some((s) => s.party === currentParty && s.img_url === "")
+  );
+
+  if (hasBlankSignatures) {
+    setError({
+      title: "Missing Signatures",
+      message: "Please sign all your designated signature fields (shown in blue) before finalizing."
+    });
+    return;
+  }
+
+  setIsFinalizing(true);
+  try {
+    // First, ensure all signatures are saved with the parties update
+    const contractResponse = await fetch(`/api/contracts/${contractId}`);
+    if (!contractResponse.ok) {
+      throw new Error('Failed to fetch contract');
+    }
+    
+    const { contract: currentContract } = await contractResponse.json();
+    
+    // Check if all parties have signed
+    const allPartiesSigned = currentContract.parties?.every((party: any) => party.signed) || false;
+    
+    // Sign the contract (this endpoint should handle the final verification)
+    const response = await fetch(`/api/contracts/${contractId}/sign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contractJson: contractJson,
+        timestamp: new Date().toISOString(),
+        token: token
+      }),
+    });
+
+    if (response.ok) {
+      // If all parties have signed, send finalized contract email
+      if (allPartiesSigned) {
         await fetch(`/api/contracts/${contractId}/finalize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -230,25 +320,26 @@ function SignContractContent() {
             recipientEmail
           }),
         });
-
-        router.push('/thank-you');
-      } else {
-        const errorData = await response.json();
-        setError({
-          title: "Signing Failed",
-          message: errorData.error || 'Failed to sign the contract. Please try again.'
-        });
       }
-    } catch (error) {
-      console.error('Error signing contract:', error);
+
+      router.push('/thank-you');
+    } else {
+      const errorData = await response.json();
       setError({
-        title: "Error",
-        message: 'An error occurred while signing. Please try again.'
+        title: "Signing Failed",
+        message: errorData.error || 'Failed to sign the contract. Please try again.'
       });
-    } finally {
-      setIsFinalizing(false);
     }
-  };
+  } catch (error) {
+    console.error('Error signing contract:', error);
+    setError({
+      title: "Error",
+      message: 'An error occurred while signing. Please try again.'
+    });
+  } finally {
+    setIsFinalizing(false);
+  }
+};
 
   if (loading) {
     return (
