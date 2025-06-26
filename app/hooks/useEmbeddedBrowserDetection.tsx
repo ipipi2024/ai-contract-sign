@@ -9,6 +9,9 @@ export function useEmbeddedBrowserDetection() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+
     const detectAndRedirect = () => {
       const ua = navigator.userAgent || navigator.vendor || ''
       

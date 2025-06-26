@@ -8,10 +8,13 @@ export default function EmbeddedBrowserRedirect() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    // Get the original URL from sessionStorage or construct it
-    const storedUrl = sessionStorage.getItem('oauth_redirect_url')
-    const url = storedUrl || `${window.location.origin}/auth/signin`
-    setCurrentUrl(url)
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      // Get the original URL from sessionStorage or construct it
+      const storedUrl = sessionStorage.getItem('oauth_redirect_url')
+      const url = storedUrl || `${window.location.origin}/auth/signin`
+      setCurrentUrl(url)
+    }
   }, [])
 
   const handleCopyUrl = async () => {
