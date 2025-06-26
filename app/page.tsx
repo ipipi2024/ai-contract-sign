@@ -26,30 +26,33 @@ export default function HomePage() {
       
       <main className="flex-1 bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white border-b border-gray-200  flex items-center justify-center">
           <div className="max-w-7xl mx-auto px-4 py-16">
             <div className="text-center">
-              <h1 className="text-5xl font-bold text-gray-900 mb-6">
-                AI-Powered Contract Generation
+              <h1 className="text-5xl font-bold text-gray-900 mb-10 mt-20">
+                Generate. Sign. Send.
               </h1>
-              <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-                Create professional, legally-structured contracts in minutes with DreamSign's intelligent contract generator. 
-                From service agreements to NDAs, we've got you covered.
+              
+              <p className="text-lg text-gray-600 mb-10 max-w-3xl mx-auto">
+                Professional contracts generated and sent for e-signature in minutes through an agentic contract generation flow.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+              <div className="flex flex-col sm:flex-row gap-4 mb-[4rem] justify-center">
                 <Link
                   href="/contracts/new"
-                  className="px-8 py-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold text-lg"
+                  className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-semibold text-md"
                 >
                   Create Your First Contract
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="px-8 py-4 text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors font-semibold text-lg"
+                  className="px-8 py-4 text-black bg-blue-50 rounded-md hover:bg-blue-100 transition-colors font-semibold text-md"
                 >
                   View Dashboard
                 </Link>
               </div>
+
+              {/*  */}
             </div>
           </div>
         </div>
@@ -101,7 +104,7 @@ export default function HomePage() {
                 <p className="text-gray-600">
                   Tailor every contract to your specific needs with custom clauses, terms, and requirements. Perfect for any industry or use case.
                 </p>
-              </div>
+              </div>  
             </div>
           </div>
         </div>
