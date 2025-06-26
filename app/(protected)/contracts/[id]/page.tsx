@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import SignatureModal from "@/components/SignatureModal";
 import { ContractView } from './components/ContractView';
 import { ChatInterface } from './components/ChatInterface';
@@ -17,6 +17,8 @@ import { contractApi } from './utils/api';
 
 export default function ContractPage() {
   const router = useRouter();
+  const params = useParams();
+  const contractId = params.id as string;
   const isMobileView = useMobileDetect();
   
   // Contract management
@@ -40,7 +42,7 @@ export default function ContractPage() {
     setNewMessage,
     processChatMessage,
     setIsRegeneratingContract
-  } = useChat(contractJson, setContractJson);
+  } = useChat(contractJson, setContractJson, contractId);
 
   // Local state
   const [showSignatureFor, setShowSignatureFor] = useState<{ blockIndex: number; signatureIndex: number } | null>(null);

@@ -3,9 +3,49 @@ import { ChatMessage } from '../types/chat';
 import { ContractJson } from '../types/contract';
 import { chatApi } from '../utils/api';
 
+// Local Storage Helper Functions
+const getChatStorageKey = (contractId: string) => `chat_messages_${contractId}`;
+
+const saveChatMessagesToStorage = (contractId: string, messages: ChatMessage[]) => {
+  try {
+    const storageKey = getChatStorageKey(contractId);
+    localStorage.setItem(storageKey, JSON.stringify(messages));
+  } catch (error) {
+    console.error('Error saving chat messages to localStorage:', error);
+  }
+};
+
+const loadChatMessagesFromStorage = (contractId: string): ChatMessage[] => {
+  try {
+    const storageKey = getChatStorageKey(contractId);
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      const messages = JSON.parse(stored);
+      // Convert timestamp strings back to Date objects
+      return messages.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }));
+    }
+  } catch (error) {
+    console.error('Error loading chat messages from localStorage:', error);
+  }
+  return [];
+};
+
+const clearChatMessagesFromStorage = (contractId: string) => {
+  try {
+    const storageKey = getChatStorageKey(contractId);
+    localStorage.removeItem(storageKey);
+  } catch (error) {
+    console.error('Error clearing chat messages from localStorage:', error);
+  }
+};
+
 export const useChat = (
   contractJson: ContractJson | null,
-  setContractJson: React.Dispatch<React.SetStateAction<ContractJson | null>>
+  setContractJson: React.Dispatch<React.SetStateAction<ContractJson | null>>,
+  contractId: string
 ) => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isGeneratingInitialMessage, setIsGeneratingInitialMessage] = useState(false);
@@ -13,6 +53,24 @@ export const useChat = (
   const [newMessage, setNewMessage] = useState("");
   const [isRegeneratingContract, setIsRegeneratingContract] = useState(false);
   const hasGeneratedInitialMessage = useRef(false);
+
+  // Load chat messages from localStorage on mount
+  useEffect(() => {
+    if (contractId) {
+      const storedMessages = loadChatMessagesFromStorage(contractId);
+      if (storedMessages.length > 0) {
+        setChatMessages(storedMessages);
+        hasGeneratedInitialMessage.current = true; // Prevent regenerating initial message
+      }
+    }
+  }, [contractId]);
+
+  // Save chat messages to localStorage whenever they change
+  useEffect(() => {
+    if (contractId && chatMessages.length > 0) {
+      saveChatMessagesToStorage(contractId, chatMessages);
+    }
+  }, [chatMessages, contractId]);
 
   useEffect(() => {
     if (contractJson && chatMessages.length === 0 && !hasGeneratedInitialMessage.current) {
