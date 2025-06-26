@@ -2,7 +2,6 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { useEmbeddedBrowserDetection } from '@/app/hooks/useEmbeddedBrowserDetection'
 
 interface GoogleSignInButtonProps {
   callbackUrl?: string
@@ -13,9 +12,6 @@ export default function GoogleSignInButton({
   callbackUrl = '/', 
   text = 'Sign in with Google' 
 }: GoogleSignInButtonProps) {
-  // This will handle embedded browser detection
-  useEmbeddedBrowserDetection()
-
   const handleGoogleSignIn = () => {
     signIn('google', { callbackUrl })
   }
