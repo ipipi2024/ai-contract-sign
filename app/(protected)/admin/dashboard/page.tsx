@@ -120,6 +120,8 @@ export default function AdminDashboard() {
     totalPages: 1
   });
   const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [contractsLoading, setContractsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
   const [contractSearch, setContractSearch] = useState('');
@@ -165,6 +167,7 @@ export default function AdminDashboard() {
 
   const loadUsers = async (page: number = 1) => {
     try {
+      setUsersLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
         search: userSearch,
@@ -177,11 +180,14 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching users:', error);
       setError('Failed to load users. Please try again.');
+    } finally {
+      setUsersLoading(false);
     }
   };
 
   const loadContracts = async (page: number = 1) => {
     try {
+      setContractsLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
         search: contractSearch,
@@ -194,6 +200,8 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching contracts:', error);
       setError('Failed to load contracts. Please try again.');
+    } finally {
+      setContractsLoading(false);
     }
   };
 
@@ -233,6 +241,58 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  // Loading skeleton for table rows
+  const TableRowSkeleton = () => (
+    <tr className="animate-pulse">
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2 mt-1"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-8"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+    </tr>
+  );
+
+  const ContractRowSkeleton = () => (
+    <tr className="animate-pulse">
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-20"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-32"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-16"></div>
+        <div className="h-3 bg-gray-200 rounded w-12 mt-1"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="h-4 bg-gray-200 rounded w-24"></div>
+      </td>
+    </tr>
+  );
 
   return (
     <div className="p-6 sm:p-8 lg:p-10">
@@ -483,78 +543,96 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        user.plan === 'enterprise' ? 'bg-indigo-100 text-indigo-800' :
-                        user.plan === 'pro' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.plan}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.contractsCreated}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                {usersLoading ? (
+                  <>
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                    <TableRowSkeleton />
+                  </>
+                ) : users.users.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No users found matching your criteria.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  users.users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          user.plan === 'enterprise' ? 'bg-indigo-100 text-indigo-800' :
+                          user.plan === 'pro' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.plan}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {user.contractsCreated}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-700">
-              Showing {((users.page - 1) * 10) + 1} to {Math.min(users.page * 10, users.total)} of {users.total} users
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => loadUsers(users.page - 1)}
-                disabled={users.page === 1}
-                className={`px-3 py-1 rounded-md ${
-                  users.page === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="px-4 py-1 text-sm text-gray-700">
-                Page {users.page} of {users.totalPages}
-              </span>
-              <button
-                onClick={() => loadUsers(users.page + 1)}
-                disabled={users.page === users.totalPages}
-                className={`px-3 py-1 rounded-md ${
-                  users.page === users.totalPages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+          {!usersLoading && users.users.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <p className="text-sm text-gray-700">
+                Showing {((users.page - 1) * 10) + 1} to {Math.min(users.page * 10, users.total)} of {users.total} users
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => loadUsers(users.page - 1)}
+                  disabled={users.page === 1}
+                  className={`px-3 py-1 rounded-md ${
+                    users.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="px-4 py-1 text-sm text-gray-700">
+                  Page {users.page} of {users.totalPages}
+                </span>
+                <button
+                  onClick={() => loadUsers(users.page + 1)}
+                  disabled={users.page === users.totalPages}
+                  className={`px-3 py-1 rounded-md ${
+                    users.page === users.totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -601,80 +679,98 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {contracts.contracts.map((contract) => (
-                  <tr key={contract.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900 max-w-xs truncate">{contract.title}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900 capitalize">{contract.type}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        contract.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        contract.status === 'signed' ? 'bg-blue-100 text-blue-800' :
-                        contract.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {contract.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {contract.createdBy}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {contract.parties.length} parties
-                        <div className="text-xs text-gray-500">
-                          {contract.parties.filter(p => p.signed).length} signed
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(contract.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(contract.updatedAt).toLocaleDateString()}
+                {contractsLoading ? (
+                  <>
+                    <ContractRowSkeleton />
+                    <ContractRowSkeleton />
+                    <ContractRowSkeleton />
+                    <ContractRowSkeleton />
+                    <ContractRowSkeleton />
+                  </>
+                ) : contracts.contracts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      No contracts found matching your criteria.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  contracts.contracts.map((contract) => (
+                    <tr key={contract.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900 max-w-xs truncate">{contract.title}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 capitalize">{contract.type}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          contract.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          contract.status === 'signed' ? 'bg-blue-100 text-blue-800' :
+                          contract.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {contract.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {contract.createdBy}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {contract.parties.length} parties
+                          <div className="text-xs text-gray-500">
+                            {contract.parties.filter(p => p.signed).length} signed
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(contract.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(contract.updatedAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-700">
-              Showing {((contracts.page - 1) * 10) + 1} to {Math.min(contracts.page * 10, contracts.total)} of {contracts.total} contracts
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => loadContracts(contracts.page - 1)}
-                disabled={contracts.page === 1}
-                className={`px-3 py-1 rounded-md ${
-                  contracts.page === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="px-4 py-1 text-sm text-gray-700">
-                Page {contracts.page} of {contracts.totalPages}
-              </span>
-              <button
-                onClick={() => loadContracts(contracts.page + 1)}
-                disabled={contracts.page === contracts.totalPages}
-                className={`px-3 py-1 rounded-md ${
-                  contracts.page === contracts.totalPages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+          {!contractsLoading && contracts.contracts.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <p className="text-sm text-gray-700">
+                Showing {((contracts.page - 1) * 10) + 1} to {Math.min(contracts.page * 10, contracts.total)} of {contracts.total} contracts
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => loadContracts(contracts.page - 1)}
+                  disabled={contracts.page === 1}
+                  className={`px-3 py-1 rounded-md ${
+                    contracts.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="px-4 py-1 text-sm text-gray-700">
+                  Page {contracts.page} of {contracts.totalPages}
+                </span>
+                <button
+                  onClick={() => loadContracts(contracts.page + 1)}
+                  disabled={contracts.page === contracts.totalPages}
+                  className={`px-3 py-1 rounded-md ${
+                    contracts.page === contracts.totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
