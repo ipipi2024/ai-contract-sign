@@ -13,8 +13,18 @@ function BrowserRedirectContent() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Get the intended URL from search params
-      const intended = searchParams.get('intended') || '/auth/signin'
-      const fullUrl = `${window.location.origin}${intended}`
+      const intended = searchParams.get('intended') || '/'
+      
+      // If the intended URL is a protected route, redirect to signin with callback
+      let fullUrl;
+      if (intended !== '/auth/signin' && intended !== '/auth/signup' && intended !== '/') {
+        // For protected routes, construct signin URL with callback
+        fullUrl = `${window.location.origin}/auth/signin?callbackUrl=${encodeURIComponent(intended)}`;
+      } else {
+        // For auth pages or home, use the intended URL directly
+        fullUrl = `${window.location.origin}${intended}`;
+      }
+      
       setCurrentUrl(fullUrl)
       
       // Automatically attempt to open in browser on load
