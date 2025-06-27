@@ -69,7 +69,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                 <div className="ml-4 pl-4 border-l border-gray-200">
                   <Link
                     href="/contracts/new"
-                    className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-all text-sm font-medium shadow-sm hover:shadow"
+                    className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all text-sm font-medium shadow-sm hover:shadow active:shadow-md"
                   >
                     Create Contract
                   </Link>
@@ -79,7 +79,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                 <div className="ml-3 relative user-menu-container">
                   <button 
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-all p-2 rounded-lg hover:bg-gray-50"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 active:text-gray-900 transition-all p-2 rounded-lg hover:bg-gray-50 active:bg-gray-100"
                   >
                     <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                       <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +100,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                       </div>
                       <button 
                         onClick={handleSignOut}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                       >
                         Sign out
                       </button>
@@ -113,7 +113,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
               <div className="md:hidden mobile-menu-container">
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="text-gray-600 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-50"
+                  className="text-gray-600 hover:text-gray-900 active:text-gray-900 p-2 rounded-lg hover:bg-gray-50 active:bg-gray-100"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
@@ -126,13 +126,13 @@ export default function Header({ authenticated = true }: HeaderProps) {
             <nav className="flex items-center space-x-2">
               <Link 
                 href="/auth/signin" 
-                className="px-3 md:px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all text-sm md:text-base font-medium"
+                className="px-3 md:px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 active:bg-gray-100 active:text-gray-900 transition-all text-sm md:text-base font-medium"
               >
                 Sign In
               </Link>
               <Link
                 href="/auth/signup"
-                className="bg-blue-600 text-white px-3 md:px-5 py-2 rounded-lg hover:bg-blue-700 transition-all text-sm md:text-base font-medium shadow-sm hover:shadow"
+                className="bg-blue-600 text-white px-3 md:px-5 py-2 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all text-sm md:text-base font-medium shadow-sm hover:shadow active:shadow-md"
               >
                 Get Started
               </Link>
@@ -147,14 +147,14 @@ export default function Header({ authenticated = true }: HeaderProps) {
           <div className="px-4 py-2 space-y-1 flex flex-col justify-center min-h-[200px]">
             <Link 
               href="/dashboard" 
-              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100 active:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
             </Link>
             <Link 
               href="/contracts" 
-              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100 active:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Contracts
@@ -163,7 +163,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
             <div className="pt-1">
               <Link 
                 href="/contracts/new" 
-                className="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                className="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-all"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Create Contract
@@ -182,7 +182,7 @@ export default function Header({ authenticated = true }: HeaderProps) {
                 setIsMobileMenuOpen(false)
                 handleSignOut()
               }}
-              className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all"
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100 active:text-gray-900 transition-all"
             >
               Sign out
             </button>
