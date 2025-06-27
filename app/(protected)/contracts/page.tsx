@@ -158,7 +158,7 @@ export default function ContractsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4" style={{ color: "var(--foreground)" }}>
-            Loading contracts...
+            Loading...
           </p>
         </div>
       </div>
@@ -196,12 +196,12 @@ export default function ContractsPage() {
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
-            <h1
+            {/* <h1
               className="text-2xl font-semibold"
               style={{ color: "var(--foreground)" }}
             >
-              Contracts
-            </h1>
+              Dashboard
+            </h1> */}
             {/* <Link
               href="/contracts/new"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center"

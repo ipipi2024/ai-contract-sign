@@ -53,17 +53,17 @@ export default function Header({ authenticated = true }: HeaderProps) {
             <>
               {/* Desktop Navigation */}
               <nav className="hidden md:flex items-center space-x-1">
-                <Link 
+                {/* <Link 
                   href="/dashboard" 
                   className="px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all font-medium"
                 >
                   Dashboard
-                </Link>
+                </Link> */}
                 <Link 
                   href="/contracts" 
                   className="px-4 py-2 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all font-medium"
                 >
-                  Contracts
+                  Dashboard
                 </Link>
                 
                 <div className="ml-4 pl-4 border-l border-gray-200">

@@ -222,7 +222,7 @@ export default function HomePage() {
                   Create Your First Contract
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/contracts"
                   className="px-6 md:px-8 py-3 md:py-4 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 active:border-gray-500 transition-colors font-semibold text-md"
                 >
                   View Dashboard
