@@ -1,7 +1,10 @@
+// ===================================
+// Updated Sign-In Page Component
+// ===================================
 // app/auth/signin/page.tsx
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -11,10 +14,37 @@ function SignInForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false)
   
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
+
+  useEffect(() => {
+    // Detect in-app browser
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+    const inAppBrowserPatterns = [
+      /FBAN/i, /FBAV/i,           // Facebook
+      /Instagram/i,                // Instagram
+      /Twitter/i,                  // Twitter
+      /LinkedInApp/i,              // LinkedIn
+      /Line/i,                     // Line
+      /Snapchat/i,                 // Snapchat
+      /WeChat/i, /MicroMessenger/i,// WeChat
+      /WhatsApp/i,                 // WhatsApp
+      /Telegram/i,                 // Telegram
+      /TikTok/i, /Musical.ly/i,    // TikTok
+      /Pinterest/i,                // Pinterest
+      /reddit/i,                   // Reddit
+      /Discord/i,                  // Discord
+      /Slack/i,                    // Slack
+      /WebView/i, /wv/i,          // Generic WebView
+      /\bGSA\b/i,                 // Google Search App
+    ];
+    
+    const isInApp = inAppBrowserPatterns.some(pattern => pattern.test(userAgent));
+    setIsInAppBrowser(isInApp);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +61,6 @@ function SignInForm() {
       if (result?.error) {
         setError('Invalid email or password')
       } else {
-        // Refresh the session and redirect
         await getSession()
         router.push(callbackUrl)
         router.refresh()
@@ -44,7 +73,13 @@ function SignInForm() {
   }
 
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl })
+    if (isInAppBrowser) {
+      // Redirect to the browser opener API
+      const currentUrl = window.location.href;
+      window.location.href = `/api/open-in-browser?url=${encodeURIComponent(currentUrl)}`;
+    } else {
+      signIn('google', { callbackUrl })
+    }
   }
 
   return (
@@ -66,6 +101,15 @@ function SignInForm() {
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
               {error}
+            </div>
+          )}
+
+          {isInAppBrowser && (
+            <div className="mb-4 bg-yellow-50 border border-yellow-200 px-4 py-3 rounded">
+              <p className="text-sm text-yellow-800">
+                <strong>⚠️ Better Experience Available</strong><br />
+                For the best experience with Google Sign-In, we'll open this in your browser.
+              </p>
             </div>
           )}
 
@@ -130,7 +174,7 @@ function SignInForm() {
             <div className="mt-6">
               <button
                 onClick={handleGoogleSignIn}
-                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 active:border-gray-500 transition-colors"
+                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -138,7 +182,9 @@ function SignInForm() {
                   <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                <span className="ml-2">Sign in with Google</span>
+                <span className="ml-2">
+                  {isInAppBrowser ? 'Open in Browser to Sign In' : 'Sign in with Google'}
+                </span>
               </button>
             </div>
           </div>
@@ -152,6 +198,5 @@ export default function SignInPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <SignInForm />
-    </Suspense>
-  )
-}
+    </Suspense>)
+  }
