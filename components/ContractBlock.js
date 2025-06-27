@@ -55,7 +55,14 @@ export default function ContractBlock({
             }
           }}
         >
-          <div className="space-y-3">
+          {/* Signature Label */}
+          <div className={`absolute top-1 left-1 text-xs font-medium ${
+            isCurrentParty ? 'text-blue-900' : 'text-red-900'
+          }`}>
+            {isCurrentParty ? 'Your Signature' : 'Counterparty Signature'}
+          </div>
+          
+          <div className="space-y-3 mt-7">
             <div className="text-md">
               Name: {signature?.name ? (
                 <span className="font-normal">{signature.name}</span>
