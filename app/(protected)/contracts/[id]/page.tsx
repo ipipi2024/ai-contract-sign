@@ -179,7 +179,7 @@ export default function ContractPage() {
     setIsSendingContract(true);
     try {
       await contractApi.sendContract(contract?._id || '', contractJson, recipientEmail);
-      router.push('/dashboard');
+      router.push('/contracts');
     } catch (error) {
       console.error('Error sending contract:', error);
       setError({
