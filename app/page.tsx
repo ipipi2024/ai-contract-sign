@@ -147,11 +147,13 @@ export default function HomePage() {
           <div className="absolute inset-0 overflow-hidden md:hidden">
             {/* Top left - Small document */}
             <div className="absolute top-24 left-8 mobile-float-1">
-              <div className="w-8 h-10 bg-gray-100 rounded shadow-md border border-gray-200">
+              <div className="w-12 h-14 bg-gray-100 rounded shadow-md border border-gray-200">
                 <div className="w-full h-1 bg-gray-300 rounded-t"></div>
                 <div className="p-1 space-y-0.5">
                   <div className="h-0.5 bg-gray-300 rounded w-3/4"></div>
                   <div className="h-0.5 bg-gray-300 rounded w-full"></div>
+                  <div className="h-0.5 bg-gray-300 rounded w-5/6"></div>
+                  <div className="h-0.5 bg-gray-300 rounded w-2/3"></div>
                 </div>
               </div>
             </div>
