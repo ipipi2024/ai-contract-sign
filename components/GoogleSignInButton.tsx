@@ -2,7 +2,7 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { isEmbeddedBrowser, redirectToMainSiteWithGoogleAuth } from '@/lib/utils'
+import { isEmbeddedBrowser, isLinkedInBrowser, forceRedirectToMainSiteWithGoogleAuth } from '@/lib/utils'
 
 interface GoogleSignInButtonProps {
   callbackUrl?: string
@@ -14,10 +14,17 @@ export default function GoogleSignInButton({
   text = 'Sign in with Google' 
 }: GoogleSignInButtonProps) {
   const handleGoogleSignIn = () => {
-    // Check if user is in an embedded browser
+    // Check if user is in LinkedIn specifically (most problematic)
+    if (isLinkedInBrowser()) {
+      // Force redirect for LinkedIn - it's the most restrictive
+      forceRedirectToMainSiteWithGoogleAuth(callbackUrl)
+      return
+    }
+    
+    // Check if user is in any other embedded browser
     if (isEmbeddedBrowser()) {
-      // Redirect to main site with Google auth already initiated
-      redirectToMainSiteWithGoogleAuth(callbackUrl)
+      // Use force redirect for more reliable navigation from embedded browsers
+      forceRedirectToMainSiteWithGoogleAuth(callbackUrl)
     } else {
       // Normal Google sign-in flow
       signIn('google', { callbackUrl })

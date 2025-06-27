@@ -38,7 +38,32 @@ export function isEmbeddedBrowser(): boolean {
     'capacitor'
   ]
   
-  return embeddedIndicators.some(indicator => userAgent.includes(indicator))
+  // Additional checks for LinkedIn specifically
+  const isLinkedIn = userAgent.includes('linkedin') || 
+                    (window as any).LinkedInApp || 
+                    (window as any).linkedin
+  
+  // Check if we're in a WebView or iframe
+  const isInWebView = (window as any).ReactNativeWebView || 
+                     (window as any).webkit?.messageHandlers ||
+                     window.self !== window.top
+  
+  return embeddedIndicators.some(indicator => userAgent.includes(indicator)) || 
+         isLinkedIn || 
+         isInWebView
+}
+
+/**
+ * Specifically detects LinkedIn embedded browser
+ */
+export function isLinkedInBrowser(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  return userAgent.includes('linkedin') || 
+         (window as any).LinkedInApp || 
+         (window as any).linkedin ||
+         window.self !== window.top // LinkedIn often uses iframes
 }
 
 /**
@@ -58,5 +83,52 @@ export function redirectToMainSiteWithGoogleAuth(callbackUrl?: string): void {
     ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
     : googleAuthUrl
   
-  window.location.href = finalUrl
+  // Try multiple methods to ensure the redirect works in embedded browsers
+  try {
+    // Method 1: Try to open in new window/tab (most reliable for embedded browsers)
+    const newWindow = window.open(finalUrl, '_blank', 'noopener,noreferrer')
+    
+    // Method 2: If window.open fails or is blocked, try direct navigation
+    if (!newWindow || newWindow.closed) {
+      window.location.href = finalUrl
+    }
+  } catch (error) {
+    // Method 3: Fallback to direct navigation
+    window.location.href = finalUrl
+  }
+}
+
+/**
+ * Force redirect to main site with Google OAuth - use this when you want to ensure
+ * the user gets to the main site regardless of browser detection
+ */
+export function forceRedirectToMainSiteWithGoogleAuth(callbackUrl?: string): void {
+  if (typeof window === 'undefined') return
+  
+  const baseUrl = 'https://dreamsign.ai'
+  const autoAuthPath = '/api/auth/auto-google'
+  const googleAuthUrl = `${baseUrl}${autoAuthPath}?provider=google`
+  
+  // Add callback URL if provided
+  const finalUrl = callbackUrl 
+    ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : googleAuthUrl
+  
+  // Force redirect using multiple methods
+  try {
+    // Method 1: Try window.open first (most reliable for LinkedIn)
+    const newWindow = window.open(finalUrl, '_blank', 'noopener,noreferrer')
+    
+    // Method 2: If that fails, use location.replace for a more forceful redirect
+    if (!newWindow || newWindow.closed) {
+      window.location.replace(finalUrl)
+    }
+  } catch (error) {
+    // Method 3: Final fallback - try multiple approaches
+    try {
+      window.location.replace(finalUrl)
+    } catch {
+      window.location.href = finalUrl
+    }
+  }
 }
