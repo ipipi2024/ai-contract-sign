@@ -10,39 +10,36 @@ export async function POST(request: NextRequest) {
   try {
     // Get the session to check if user is authenticated
     const session = await getServerSession(authOptions);
-
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json(
         { error: "Unauthorized - Please sign in to generate contracts" },
         { status: 401 }
       );
     }
-
+    
     await connectToDatabase();
-
+    
     // Get the prompt from the request body
     const body = await request.json();
     const { prompt } = body;
-
+    
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
         { status: 400 }
       );
     }
-
+    
     const user = await User.findById(session.user.id);
-
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
+    
     const userName = user.name;
-
+    
     // Generate contract using GPT, retrieve it as a JSON object
     const contractJson = await generateContractJson(`This is the user's name: ${userName}. ${prompt}`);
-    
-
+   
     // Save to database with the authenticated user's ID
     const contract = await Contract.create({
       userId: session.user.id, // Use the actual authenticated user's ID
@@ -53,7 +50,7 @@ export async function POST(request: NextRequest) {
       parties: contractJson.parties || [], // Include parties if generated
       status: "draft",
     });
-
+    
     return NextResponse.json({ contract }, { status: 201 });
   } catch (error) {
     console.error("Error generating contract:", error);
