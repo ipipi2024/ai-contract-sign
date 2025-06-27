@@ -6,363 +6,191 @@ export async function GET(request: NextRequest) {
   const redirectUrl = searchParams.get('url') || '/';
   const userAgent = request.headers.get('user-agent') || '';
   
-  // Detect platform
+  // Detect platform and specific apps
   const isAndroid = /android/i.test(userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-  
-  // For iOS, we can try to detect specific in-app browsers
-  const isFacebookApp = /FBAN|FBAV/i.test(userAgent);
+  const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(userAgent);
   const isInstagram = /Instagram/i.test(userAgent);
   const isTwitter = /Twitter/i.test(userAgent);
   const isLinkedIn = /LinkedInApp/i.test(userAgent);
+  const isTikTok = /TikTok|Musical.ly/i.test(userAgent);
   
-  // Generate the HTML page that will perform the redirect
+  // For immediate redirect on iOS apps
+  if (isIOS && (isFacebookApp || isInstagram || isTwitter || isLinkedIn || isTikTok)) {
+    // Use a data URI redirect which works in many iOS in-app browsers
+    const dataUri = `data:text/html,<html><head><meta http-equiv="refresh" content="0; url=${encodeURIComponent(redirectUrl)}"></head><body></body></html>`;
+    return NextResponse.redirect(dataUri);
+  }
+  
+  // Generate the HTML page with aggressive redirect attempts
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Opening in Browser...</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          margin: 0;
-          background: #f5f5f5;
-          padding: 20px;
-        }
-        .container {
-          text-align: center;
-          padding: 30px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          max-width: 400px;
-          width: 100%;
-        }
-        .spinner {
-          width: 50px;
-          height: 50px;
-          border: 3px solid #f3f3f3;
-          border-top: 3px solid #3498db;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        h1 { 
-          font-size: 24px; 
-          margin-bottom: 10px;
-          color: #333;
-        }
-        p { 
-          color: #666; 
-          margin-bottom: 20px;
-          line-height: 1.5;
-        }
-        .button {
-          display: inline-block;
-          padding: 14px 28px;
-          background: #3498db;
-          color: white;
-          text-decoration: none;
-          border-radius: 6px;
-          margin: 8px 4px;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-        .button:hover {
-          background: #2980b9;
-        }
-        .button-secondary {
-          background: #7f8c8d;
-        }
-        .button-secondary:hover {
-          background: #5a6c7d;
-        }
-        .hidden { display: none !important; }
-        .url-display {
-          background: #f8f9fa;
-          padding: 12px;
-          border-radius: 6px;
-          margin: 20px 0;
-          word-break: break-all;
-          font-family: monospace;
-          font-size: 14px;
-          color: #555;
-          border: 1px solid #e0e0e0;
-        }
-        .instructions {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          border-radius: 6px;
-          padding: 15px;
-          margin: 20px 0;
-          text-align: left;
-        }
-        .instructions h3 {
-          margin: 0 0 10px 0;
-          color: #856404;
-          font-size: 16px;
-        }
-        .instructions ol {
-          margin: 0;
-          padding-left: 20px;
-          color: #856404;
-        }
-        .instructions li {
-          margin: 5px 0;
-        }
-        .copy-button {
-          background: #28a745;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-          margin-top: 10px;
-          transition: background 0.2s;
-        }
-        .copy-button:hover {
-          background: #218838;
-        }
-        .copy-button.copied {
-          background: #6c757d;
-        }
-        .app-specific {
-          background: #e3f2fd;
-          border: 1px solid #90caf9;
-          border-radius: 6px;
-          padding: 15px;
-          margin: 15px 0;
-        }
-        .app-specific h4 {
-          margin: 0 0 10px 0;
-          color: #1976d2;
-          font-size: 16px;
-        }
-      </style>
+      <meta http-equiv="refresh" content="0; url=${redirectUrl}">
+      <title>Redirecting...</title>
+      <script>
+        // Immediate execution - no waiting
+        (function() {
+          const targetUrl = '${redirectUrl}';
+          
+          // Method 1: Immediate location change
+          window.location.replace(targetUrl);
+          
+          // Method 2: Also try href
+          window.location.href = targetUrl;
+          
+          // Method 3: Try location assign
+          window.location.assign(targetUrl);
+        })();
+      </script>
     </head>
     <body>
-      <div class="container">
-        <div id="loading-section">
-          <div class="spinner"></div>
-          <h1>Opening in Browser...</h1>
-          <p>Attempting to open in your default browser</p>
-        </div>
-        
-        <div id="manual-section" class="hidden">
-          <h1>Open in External Browser</h1>
-          <p>In-app browsers have limitations. Please follow the instructions below to open this link in your regular browser.</p>
-          
-          ${isFacebookApp || isInstagram ? `
-            <div class="app-specific">
-              <h4>${isFacebookApp ? 'Facebook' : 'Instagram'} App Instructions:</h4>
-              <ol style="text-align: left; margin: 0; padding-left: 20px;">
-                <li>Tap the three dots (⋯) in the top right corner</li>
-                <li>Select "Open in External Browser" or "Open in ${isIOS ? 'Safari' : 'Chrome'}"</li>
-              </ol>
-            </div>
-          ` : ''}
-          
-          ${isTwitter ? `
-            <div class="app-specific">
-              <h4>Twitter/X App Instructions:</h4>
-              <ol style="text-align: left; margin: 0; padding-left: 20px;">
-                <li>Tap the share button (↗) at the bottom</li>
-                <li>Select "Open in ${isIOS ? 'Safari' : 'Browser'}"</li>
-              </ol>
-            </div>
-          ` : ''}
-          
-          ${isLinkedIn ? `
-            <div class="app-specific">
-              <h4>LinkedIn App Instructions:</h4>
-              <ol style="text-align: left; margin: 0; padding-left: 20px;">
-                <li>Tap the three dots (⋯) in the top right</li>
-                <li>Select "Open in external browser"</li>
-              </ol>
-            </div>
-          ` : ''}
-          
-          <div class="instructions">
-            <h3>Manual Steps:</h3>
-            <ol>
-              <li>Copy the URL below</li>
-              <li>Open your preferred browser (${isIOS ? 'Safari, Chrome, Firefox' : 'Chrome, Firefox, Samsung Internet'})</li>
-              <li>Paste the URL in the address bar</li>
-              <li>Press Enter/Go</li>
-            </ol>
-          </div>
-          
-          <div class="url-display" id="url-display">${redirectUrl}</div>
-          <button class="copy-button" onclick="copyUrl()">Copy URL</button>
-          
-          ${isAndroid ? `
-            <div style="margin-top: 20px;">
-              <p>Alternative methods for Android:</p>
-              <a href="${redirectUrl}" target="_blank" class="button">Try Opening Directly</a>
-              <a href="googlechrome://navigate?url=${encodeURIComponent(redirectUrl)}" class="button button-secondary">Open in Chrome</a>
-            </div>
-          ` : ''}
-          
-          ${isIOS ? `
-            <div style="margin-top: 20px;">
-              <p>Alternative methods for iOS:</p>
-              <a href="${redirectUrl}" target="_blank" rel="noopener noreferrer" class="button">Try Opening Directly</a>
-              ${redirectUrl.startsWith('https://') ? `
-                <a href="${redirectUrl.replace('https://', 'googlechrome://')}" class="button button-secondary">Try Chrome</a>
-              ` : ''}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-
       <script>
         const targetUrl = '${redirectUrl}';
-        let redirectAttempted = false;
-        let attemptCount = 0;
-        const maxAttempts = 3;
+        const isAndroid = ${isAndroid};
+        const isIOS = ${isIOS};
+        const isFacebookApp = ${isFacebookApp};
+        const isInstagram = ${isInstagram};
+        const isTwitter = ${isTwitter};
+        const isLinkedIn = ${isLinkedIn};
+        const isTikTok = ${isTikTok};
         
-        function showManualInstructions() {
-          document.getElementById('loading-section').classList.add('hidden');
-          document.getElementById('manual-section').classList.remove('hidden');
-        }
-        
-        function copyUrl() {
-          const button = event.target;
-          const urlText = '${redirectUrl}';
-          
-          if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(urlText).then(() => {
-              button.textContent = 'Copied!';
-              button.classList.add('copied');
-              setTimeout(() => {
-                button.textContent = 'Copy URL';
-                button.classList.remove('copied');
-              }, 2000);
-            }).catch(() => {
-              fallbackCopy(urlText);
-            });
-          } else {
-            fallbackCopy(urlText);
-          }
-        }
-        
-        function fallbackCopy(text) {
-          const textArea = document.createElement('textarea');
-          textArea.value = text;
-          textArea.style.position = 'fixed';
-          textArea.style.left = '-999999px';
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          
-          try {
-            document.execCommand('copy');
-            event.target.textContent = 'Copied!';
-            event.target.classList.add('copied');
-            setTimeout(() => {
-              event.target.textContent = 'Copy URL';
-              event.target.classList.remove('copied');
-            }, 2000);
-          } catch (err) {
-            console.error('Failed to copy');
-          }
-          
-          document.body.removeChild(textArea);
-        }
-        
-        function attemptRedirect() {
-          if (redirectAttempted || attemptCount >= maxAttempts) {
-            showManualInstructions();
-            return;
-          }
-          
-          attemptCount++;
-          
-          const isAndroid = ${isAndroid};
-          const isIOS = ${isIOS};
-          
+        // Aggressive redirect function
+        function forceRedirect() {
           if (isAndroid) {
-            // For Android, try opening in a new tab first
-            const newWindow = window.open(targetUrl, '_blank');
+            // Android methods in order of effectiveness
             
-            if (newWindow) {
-              // If window.open worked, we're done
-              redirectAttempted = true;
-              setTimeout(() => {
-                // Check if we're still on the same page
-                if (!redirectAttempted) {
-                  showManualInstructions();
-                }
-              }, 2000);
-            } else {
-              // If blocked, try intent URL
-              window.location.href = 'intent:' + targetUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;end';
-              
-              setTimeout(() => {
-                // If we're still here, show manual instructions
-                showManualInstructions();
-              }, 2000);
-            }
+            // Method 1: Intent with fallback browser
+            const intentUrl = 'intent:' + targetUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end';
+            window.location.href = intentUrl;
+            
+            // Method 2: Try Chrome specifically after a tiny delay
+            setTimeout(() => {
+              window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(targetUrl);
+            }, 100);
+            
+            // Method 3: Samsung Internet
+            setTimeout(() => {
+              window.location.href = 'samsunginternet://open?url=' + encodeURIComponent(targetUrl);
+            }, 200);
+            
+            // Method 4: Generic intent
+            setTimeout(() => {
+              window.location.href = 'intent://' + targetUrl.replace(/^https?:\\/\\//, '') + '#Intent;scheme=https;action=android.intent.action.VIEW;end';
+            }, 300);
             
           } else if (isIOS) {
-            // For iOS, window.open is often the most reliable
-            const newWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+            // iOS methods
             
-            if (newWindow) {
-              redirectAttempted = true;
-              // Show instructions anyway for iOS as behavior varies
-              setTimeout(showManualInstructions, 1500);
+            // Method 1: Use the x-callback-url for specific apps
+            if (isFacebookApp || isInstagram) {
+              // Facebook/Instagram specific
+              window.location.href = 'fb://facewebmodal/f?href=' + encodeURIComponent(targetUrl);
+              setTimeout(() => {
+                window.location.href = targetUrl;
+              }, 50);
+            } else if (isTwitter) {
+              // Twitter specific
+              window.location.href = 'twitter://timeline?url=' + encodeURIComponent(targetUrl);
+              setTimeout(() => {
+                window.location.href = targetUrl;
+              }, 50);
+            } else if (isLinkedIn) {
+              // LinkedIn specific
+              window.location.href = 'linkedin://openurl?url=' + encodeURIComponent(targetUrl);
+              setTimeout(() => {
+                window.location.href = targetUrl;
+              }, 50);
             } else {
-              // Try location.href as fallback
-              window.location.href = targetUrl;
-              setTimeout(showManualInstructions, 1500);
+              // Generic iOS approach
+              
+              // Try Chrome
+              const chromeUrl = targetUrl.replace(/^https:\\/\\//, 'googlechrome://');
+              window.location.href = chromeUrl;
+              
+              // Try Safari via FTP trick (works in some apps)
+              setTimeout(() => {
+                window.location.href = 'ftp://' + targetUrl.replace(/^https?:\\/\\//, '');
+              }, 100);
+              
+              // Try x-web-search protocol
+              setTimeout(() => {
+                window.location.href = 'x-web-search://?url=' + encodeURIComponent(targetUrl);
+              }, 200);
+              
+              // Final attempt with target=_blank
+              setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = targetUrl;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+              }, 300);
             }
-            
-          } else {
-            // Desktop or unknown - simple redirect
-            window.location.href = targetUrl;
-            redirectAttempted = true;
-          }
-        }
-        
-        // Don't attempt redirect immediately - wait for page load
-        window.addEventListener('load', () => {
-          // Give the page a moment to settle
-          setTimeout(() => {
-            attemptRedirect();
-          }, 500);
-        });
-        
-        // If nothing happens after 3 seconds, show manual instructions
-        setTimeout(() => {
-          if (!redirectAttempted) {
-            showManualInstructions();
-          }
-        }, 3000);
-        
-        // Also try on user interaction
-        document.addEventListener('click', function(e) {
-          // Don't interfere with button clicks
-          if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') {
-            return;
           }
           
-          if (!redirectAttempted && attemptCount < maxAttempts) {
-            attemptRedirect();
+          // Universal fallback: Create and click invisible link
+          const link = document.createElement('a');
+          link.href = targetUrl;
+          link.target = '_top'; // Try _top instead of _blank
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          
+          // Try clicking it multiple times
+          for (let i = 0; i < 3; i++) {
+            setTimeout(() => link.click(), i * 100);
           }
-        });
+          
+          // Try window.open as last resort
+          setTimeout(() => {
+            window.open(targetUrl, '_blank');
+          }, 400);
+        }
+        
+        // Execute immediately
+        forceRedirect();
+        
+        // Try again on any interaction
+        document.addEventListener('touchstart', forceRedirect, { once: true });
+        document.addEventListener('click', forceRedirect, { once: true });
+        
+        // For apps that need a user gesture, create invisible full-screen div
+        const tapDiv = document.createElement('div');
+        tapDiv.style.position = 'fixed';
+        tapDiv.style.top = '0';
+        tapDiv.style.left = '0';
+        tapDiv.style.width = '100%';
+        tapDiv.style.height = '100%';
+        tapDiv.style.zIndex = '9999';
+        tapDiv.style.background = 'transparent';
+        tapDiv.onclick = forceRedirect;
+        document.body.appendChild(tapDiv);
+        
+        // Remove the div after a second
+        setTimeout(() => {
+          if (tapDiv.parentNode) {
+            tapDiv.parentNode.removeChild(tapDiv);
+          }
+        }, 1000);
       </script>
+      
+      <!-- Minimal loading indicator -->
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,-apple-system,sans-serif;">
+        <div style="text-align:center;">
+          <div style="width:40px;height:40px;border:3px solid #f3f3f3;border-top:3px solid #3498db;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div>
+          <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+        </div>
+      </div>
+      
+      <!-- Multiple redirect attempts in HTML -->
+      <iframe src="${redirectUrl}" style="display:none;"></iframe>
+      <iframe src="googlechrome://navigate?url=${encodeURIComponent(redirectUrl)}" style="display:none;"></iframe>
+      ${isAndroid ? `<iframe src="intent:${redirectUrl}#Intent;scheme=https;action=android.intent.action.VIEW;end" style="display:none;"></iframe>` : ''}
     </body>
     </html>
   `;
@@ -370,7 +198,6 @@ export async function GET(request: NextRequest) {
   return new NextResponse(html, {
     headers: { 
       'Content-Type': 'text/html',
-      // Prevent caching to ensure fresh attempts
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
