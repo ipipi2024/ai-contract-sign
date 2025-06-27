@@ -217,13 +217,13 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 mb-8 md:mb-[4rem] justify-center">
                 <Link
                   href="/contracts/new"
-                  className="px-6 md:px-8 py-3 md:py-4 bg-blue-600 text-white rounded-md hover:bg-blue-800 transition-colors font-semibold text-sm md:text-md"
+                  className="px-6 md:px-8 py-3 md:py-4 bg-blue-600 text-white rounded-md hover:bg-blue-800 active:bg-blue-700 transition-colors font-semibold text-sm md:text-md"
                 >
                   Create Your First Contract
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="px-6 md:px-8 py-3 md:py-4 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors font-semibold text-md"
+                  className="px-6 md:px-8 py-3 md:py-4 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 active:border-gray-500 transition-colors font-semibold text-md"
                 >
                   View Dashboard
                 </Link>
@@ -339,7 +339,7 @@ export default function HomePage() {
             <div className="text-center mt-6 md:mt-8">
               <Link
                 href="/contracts/new"
-                className="inline-flex items-center px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-md hover:bg-blue-800 transition-colors font-semibold text-sm md:text-base"
+                className="inline-flex items-center px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-md hover:bg-blue-800 active:bg-blue-700 transition-colors font-semibold text-sm md:text-base"
               >
                 Start Creating
                 <svg className="ml-2 w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,7 +390,7 @@ export default function HomePage() {
               />
               <button
                 type="submit"
-                className="px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-md hover:bg-blue-800 transition-colors font-semibold text-sm md:text-base"
+                className="px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-md hover:bg-blue-800 active:bg-blue-700 transition-colors font-semibold text-sm md:text-base"
               >
                 Subscribe
               </button>
