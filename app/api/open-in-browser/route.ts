@@ -9,20 +9,121 @@ export async function GET(request: NextRequest) {
   // Detect platform and specific apps
   const isAndroid = /android/i.test(userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-  const isFacebookApp = /FBAN|FBAV|FB_IAB/i.test(userAgent);
+  const isFacebookApp = /FBAN|FBAV|FB_IAB|FBIOS/i.test(userAgent);
   const isInstagram = /Instagram/i.test(userAgent);
-  const isTwitter = /Twitter/i.test(userAgent);
-  const isLinkedIn = /LinkedInApp/i.test(userAgent);
-  const isTikTok = /TikTok|Musical.ly/i.test(userAgent);
   
-  // For immediate redirect on iOS apps
-  if (isIOS && (isFacebookApp || isInstagram || isTwitter || isLinkedIn || isTikTok)) {
-    // Use a data URI redirect which works in many iOS in-app browsers
-    const dataUri = `data:text/html,<html><head><meta http-equiv="refresh" content="0; url=${encodeURIComponent(redirectUrl)}"></head><body></body></html>`;
-    return NextResponse.redirect(dataUri);
+  // Method 1: For Android Facebook/Instagram - Use download attribute trick
+  if (isAndroid && (isFacebookApp || isInstagram)) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redirecting...</title>
+      </head>
+      <body>
+        <a id="redirect-link" href="${redirectUrl}" download style="display:none;">Redirecting...</a>
+        <script>
+          // Immediately click the download link
+          document.getElementById('redirect-link').click();
+          
+          // Also try direct navigation
+          setTimeout(() => {
+            window.location.href = '${redirectUrl}';
+          }, 100);
+        </script>
+      </body>
+      </html>
+    `;
+    
+    return new NextResponse(html, {
+      headers: { 'Content-Type': 'text/html' },
+    });
   }
   
-  // Generate the HTML page with aggressive redirect attempts
+  // Method 2: For iOS - Use a combination of techniques
+  if (isIOS) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redirecting...</title>
+        <style>
+          body { margin: 0; padding: 0; }
+          .redirect-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999999;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="redirect-container">
+          <!-- Method 1: Window.location with user gesture -->
+          <script>
+            const targetUrl = '${redirectUrl}';
+            
+            // Create invisible full-screen button
+            const button = document.createElement('a');
+            button.href = targetUrl;
+            button.style.position = 'fixed';
+            button.style.top = '0';
+            button.style.left = '0';
+            button.style.width = '100%';
+            button.style.height = '100%';
+            button.style.opacity = '0';
+            button.style.zIndex = '999999';
+            document.body.appendChild(button);
+            
+            // Auto-click after minimal delay
+            setTimeout(() => {
+              button.click();
+            }, 10);
+            
+            // Also try direct navigation
+            window.location.replace(targetUrl);
+          </script>
+          
+          <!-- Method 2: Meta refresh fallback -->
+          <meta http-equiv="refresh" content="0; url=${redirectUrl}">
+          
+          <!-- Method 3: JavaScript location variants -->
+          <script>
+            // Try multiple location methods
+            try {
+              window.location.href = '${redirectUrl}';
+              window.location.assign('${redirectUrl}');
+              window.location = '${redirectUrl}';
+            } catch (e) {}
+            
+            // For Instagram/Facebook specifically
+            if (navigator.userAgent.match(/Instagram|FBAN|FBAV/i)) {
+              // Try opening in Safari
+              window.location.href = 'x-safari-' + '${redirectUrl}'.replace(/^https?:/, '');
+              
+              // Try FTP protocol trick
+              setTimeout(() => {
+                window.location.href = 'ftp://' + '${redirectUrl}'.replace(/^https?:\\/\\//, '');
+              }, 50);
+            }
+          </script>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    return new NextResponse(html, {
+      headers: { 'Content-Type': 'text/html' },
+    });
+  }
+  
+  // Method 3: Generic/Desktop approach with all techniques combined
   const html = `
     <!DOCTYPE html>
     <html>
@@ -31,166 +132,69 @@ export async function GET(request: NextRequest) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta http-equiv="refresh" content="0; url=${redirectUrl}">
       <title>Redirecting...</title>
-      <script>
-        // Immediate execution - no waiting
-        (function() {
-          const targetUrl = '${redirectUrl}';
-          
-          // Method 1: Immediate location change
-          window.location.replace(targetUrl);
-          
-          // Method 2: Also try href
-          window.location.href = targetUrl;
-          
-          // Method 3: Try location assign
-          window.location.assign(targetUrl);
-        })();
+      <script type="text/javascript">
+        // Immediate redirect attempts
+        window.location.replace('${redirectUrl}');
       </script>
     </head>
     <body>
       <script>
         const targetUrl = '${redirectUrl}';
-        const isAndroid = ${isAndroid};
-        const isIOS = ${isIOS};
-        const isFacebookApp = ${isFacebookApp};
-        const isInstagram = ${isInstagram};
-        const isTwitter = ${isTwitter};
-        const isLinkedIn = ${isLinkedIn};
-        const isTikTok = ${isTikTok};
         
-        // Aggressive redirect function
-        function forceRedirect() {
-          if (isAndroid) {
-            // Android methods in order of effectiveness
-            
-            // Method 1: Intent with fallback browser
-            const intentUrl = 'intent:' + targetUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end';
-            window.location.href = intentUrl;
-            
-            // Method 2: Try Chrome specifically after a tiny delay
-            setTimeout(() => {
-              window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(targetUrl);
-            }, 100);
-            
-            // Method 3: Samsung Internet
-            setTimeout(() => {
-              window.location.href = 'samsunginternet://open?url=' + encodeURIComponent(targetUrl);
-            }, 200);
-            
-            // Method 4: Generic intent
-            setTimeout(() => {
-              window.location.href = 'intent://' + targetUrl.replace(/^https?:\\/\\//, '') + '#Intent;scheme=https;action=android.intent.action.VIEW;end';
-            }, 300);
-            
-          } else if (isIOS) {
-            // iOS methods
-            
-            // Method 1: Use the x-callback-url for specific apps
-            if (isFacebookApp || isInstagram) {
-              // Facebook/Instagram specific
-              window.location.href = 'fb://facewebmodal/f?href=' + encodeURIComponent(targetUrl);
-              setTimeout(() => {
-                window.location.href = targetUrl;
-              }, 50);
-            } else if (isTwitter) {
-              // Twitter specific
-              window.location.href = 'twitter://timeline?url=' + encodeURIComponent(targetUrl);
-              setTimeout(() => {
-                window.location.href = targetUrl;
-              }, 50);
-            } else if (isLinkedIn) {
-              // LinkedIn specific
-              window.location.href = 'linkedin://openurl?url=' + encodeURIComponent(targetUrl);
-              setTimeout(() => {
-                window.location.href = targetUrl;
-              }, 50);
-            } else {
-              // Generic iOS approach
-              
-              // Try Chrome
-              const chromeUrl = targetUrl.replace(/^https:\\/\\//, 'googlechrome://');
-              window.location.href = chromeUrl;
-              
-              // Try Safari via FTP trick (works in some apps)
-              setTimeout(() => {
-                window.location.href = 'ftp://' + targetUrl.replace(/^https?:\\/\\//, '');
-              }, 100);
-              
-              // Try x-web-search protocol
-              setTimeout(() => {
-                window.location.href = 'x-web-search://?url=' + encodeURIComponent(targetUrl);
-              }, 200);
-              
-              // Final attempt with target=_blank
-              setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = targetUrl;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-              }, 300);
-            }
-          }
+        // Try all methods
+        function redirect() {
+          // Method 1: location.href
+          window.location.href = targetUrl;
           
-          // Universal fallback: Create and click invisible link
-          const link = document.createElement('a');
-          link.href = targetUrl;
-          link.target = '_top'; // Try _top instead of _blank
-          link.style.display = 'none';
-          document.body.appendChild(link);
+          // Method 2: location.replace
+          window.location.replace(targetUrl);
           
-          // Try clicking it multiple times
-          for (let i = 0; i < 3; i++) {
-            setTimeout(() => link.click(), i * 100);
-          }
+          // Method 3: location.assign  
+          window.location.assign(targetUrl);
           
-          // Try window.open as last resort
-          setTimeout(() => {
-            window.open(targetUrl, '_blank');
-          }, 400);
+          // Method 4: Create and click link
+          const a = document.createElement('a');
+          a.href = targetUrl;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          // Method 5: window.open
+          window.open(targetUrl, '_self');
         }
         
         // Execute immediately
-        forceRedirect();
+        redirect();
         
-        // Try again on any interaction
-        document.addEventListener('touchstart', forceRedirect, { once: true });
-        document.addEventListener('click', forceRedirect, { once: true });
+        // Try on DOM ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', redirect);
+        }
         
-        // For apps that need a user gesture, create invisible full-screen div
-        const tapDiv = document.createElement('div');
-        tapDiv.style.position = 'fixed';
-        tapDiv.style.top = '0';
-        tapDiv.style.left = '0';
-        tapDiv.style.width = '100%';
-        tapDiv.style.height = '100%';
-        tapDiv.style.zIndex = '9999';
-        tapDiv.style.background = 'transparent';
-        tapDiv.onclick = forceRedirect;
-        document.body.appendChild(tapDiv);
+        // Try on window load
+        window.addEventListener('load', redirect);
         
-        // Remove the div after a second
-        setTimeout(() => {
-          if (tapDiv.parentNode) {
-            tapDiv.parentNode.removeChild(tapDiv);
-          }
-        }, 1000);
+        // Android-specific: Intent URLs
+        if (navigator.userAgent.match(/Android/i)) {
+          setTimeout(() => {
+            window.location.href = 'intent:' + targetUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end';
+          }, 100);
+        }
       </script>
       
-      <!-- Minimal loading indicator -->
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,-apple-system,sans-serif;">
-        <div style="text-align:center;">
-          <div style="width:40px;height:40px;border:3px solid #f3f3f3;border-top:3px solid #3498db;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div>
-          <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
-        </div>
-      </div>
+      <!-- Fallback link -->
+      <noscript>
+        <meta http-equiv="refresh" content="0; url=${redirectUrl}">
+      </noscript>
       
-      <!-- Multiple redirect attempts in HTML -->
-      <iframe src="${redirectUrl}" style="display:none;"></iframe>
-      <iframe src="googlechrome://navigate?url=${encodeURIComponent(redirectUrl)}" style="display:none;"></iframe>
-      ${isAndroid ? `<iframe src="intent:${redirectUrl}#Intent;scheme=https;action=android.intent.action.VIEW;end" style="display:none;"></iframe>` : ''}
+      <!-- Hidden iframes for additional attempts -->
+      <iframe src="${redirectUrl}" style="width:0;height:0;border:0;display:none;"></iframe>
+      
+      <!-- Minimal UI -->
+      <div style="font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:20px;">
+        <p>Redirecting...</p>
+        <p style="font-size:12px;color:#666;">If you are not redirected, <a href="${redirectUrl}">click here</a>.</p>
+      </div>
     </body>
     </html>
   `;
@@ -200,7 +204,9 @@ export async function GET(request: NextRequest) {
       'Content-Type': 'text/html',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
-      'Expires': '0'
+      'Expires': '0',
+      // Add header that some in-app browsers respect
+      'X-Frame-Options': 'DENY',
     },
   });
 }
