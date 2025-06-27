@@ -1,75 +1,11 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function OpenExternalContent() {
   const searchParams = useSearchParams();
-  const [attemptedRedirect, setAttemptedRedirect] = useState(false);
-  const [countdown, setCountdown] = useState(3);
-  
   const targetUrl = searchParams.get('url') || '/';
-
-  useEffect(() => {
-    if (!attemptedRedirect) {
-      setAttemptedRedirect(true);
-      
-      // Try to open in external browser using various methods
-      const openInExternalBrowser = () => {
-        const userAgent = navigator.userAgent;
-        
-        // For iOS
-        if (/iPhone|iPad|iPod/.test(userAgent)) {
-          // Try multiple methods for iOS
-          const schemes = [
-            `x-web-search://${targetUrl}`,
-            `googlechrome://${targetUrl}`,
-            `firefox://open-url?url=${encodeURIComponent(targetUrl)}`,
-            targetUrl
-          ];
-          
-          schemes.forEach((scheme, index) => {
-            setTimeout(() => {
-              window.location.href = scheme;
-            }, index * 100);
-          });
-        } 
-        // For Android
-        else if (/Android/.test(userAgent)) {
-          // Try intent URL for Android Chrome
-          const intentUrl = `intent://${targetUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-          window.location.href = intentUrl;
-          
-          // Fallback to regular URL after a short delay
-          setTimeout(() => {
-            window.location.href = targetUrl;
-          }, 500);
-        }
-        // Desktop or other
-        else {
-          window.open(targetUrl, '_blank');
-        }
-      };
-      
-      // Attempt redirect
-      openInExternalBrowser();
-      
-      // Start countdown for fallback
-      const timer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            // Fallback: redirect to target URL
-            window.location.href = targetUrl;
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      return () => clearInterval(timer);
-    }
-  }, [attemptedRedirect, targetUrl]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -82,26 +18,51 @@ function OpenExternalContent() {
           </div>
           
           <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Opening DreamSign in your browser...
+            Open in Your Browser
           </h1>
           
           <p className="text-gray-600 mb-4">
-            We're redirecting you to your default browser for the best experience.
+            To use DreamSign, please open this link in your default browser for the best experience.
           </p>
           
-          {countdown > 0 && (
-            <p className="text-sm text-gray-500">
-              Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}...
+          <div className="bg-gray-50 rounded-md p-3 mb-4">
+            <p className="text-sm text-gray-500 break-all">
+              {targetUrl}
             </p>
-          )}
+          </div>
           
-          <div className="mt-6">
+          <div className="space-y-3">
             <button
-              onClick={() => window.location.href = targetUrl}
+              onClick={() => {
+                // Try to copy to clipboard
+                navigator.clipboard.writeText(targetUrl).then(() => {
+                  alert('Link copied to clipboard! Please paste it in your browser.');
+                }).catch(() => {
+                  // Fallback for older browsers
+                  const textArea = document.createElement('textarea');
+                  textArea.value = targetUrl;
+                  document.body.appendChild(textArea);
+                  textArea.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(textArea);
+                  alert('Link copied to clipboard! Please paste it in your browser.');
+                });
+              }}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors"
             >
-              Open Now
+              Copy Link
             </button>
+            
+            <button
+              onClick={() => window.location.href = targetUrl}
+              className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 active:bg-gray-400 transition-colors"
+            >
+              Try Opening Here
+            </button>
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-500">
+            <p>💡 Tip: Copy the link and paste it in your browser's address bar</p>
           </div>
         </div>
       </div>
