@@ -3,6 +3,7 @@
 
 import { signIn } from 'next-auth/react'
 import { isEmbeddedBrowser } from '@/lib/utils'
+import { useState, useEffect } from 'react'
 
 interface GoogleSignInButtonProps {
   callbackUrl?: string
@@ -13,13 +14,19 @@ export default function GoogleSignInButton({
   callbackUrl = '/', 
   text = 'Sign in with Google' 
 }: GoogleSignInButtonProps) {
-  // Hide the button completely if in embedded browser
-  if (isEmbeddedBrowser()) {
-    return null
-  }
+  const [isEmbedded, setIsEmbedded] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    setIsEmbedded(isEmbeddedBrowser())
+  }, [])
 
   const handleGoogleSignIn = () => {
     signIn('google', { callbackUrl })
+  }
+
+  // Show button by default, hide only if we confirm it's embedded
+  if (isEmbedded === true) {
+    return null
   }
 
   return (

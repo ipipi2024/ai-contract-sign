@@ -1,7 +1,7 @@
 // app/auth/signup/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -14,8 +14,13 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isEmbedded, setIsEmbedded] = useState<boolean | null>(null)
   
   const router = useRouter()
+
+  useEffect(() => {
+    setIsEmbedded(isEmbeddedBrowser())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -172,7 +177,7 @@ export default function SignUpPage() {
             </div>
           </form>
 
-          {!isEmbeddedBrowser() && (
+          {isEmbedded !== true && (
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
