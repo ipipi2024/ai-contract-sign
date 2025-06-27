@@ -5,7 +5,7 @@ import { useState, Suspense } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { isEmbeddedBrowser, isLinkedInBrowser, forceRedirectToMainSiteWithGoogleAuth } from '@/lib/utils'
+import { isEmbeddedBrowser, isLinkedInBrowser, forceLinkedInRedirect } from '@/lib/utils'
 
 function SignInForm() {
   const [email, setEmail] = useState('')
@@ -47,15 +47,29 @@ function SignInForm() {
   const handleGoogleSignIn = () => {
     // Check if user is in LinkedIn specifically (most problematic)
     if (isLinkedInBrowser()) {
-      // Force redirect for LinkedIn - it's the most restrictive
-      forceRedirectToMainSiteWithGoogleAuth(callbackUrl)
+      // Use ultra-aggressive LinkedIn redirect
+      const baseUrl = 'https://dreamsign.ai'
+      const autoAuthPath = '/api/auth/auto-google'
+      const googleAuthUrl = `${baseUrl}${autoAuthPath}?provider=google`
+      const finalUrl = callbackUrl 
+        ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
+        : googleAuthUrl
+      
+      forceLinkedInRedirect(finalUrl)
       return
     }
     
     // Check if user is in any other embedded browser
     if (isEmbeddedBrowser()) {
-      // Use force redirect for more reliable navigation from embedded browsers
-      forceRedirectToMainSiteWithGoogleAuth(callbackUrl)
+      // Use ultra-aggressive redirect for all embedded browsers
+      const baseUrl = 'https://dreamsign.ai'
+      const autoAuthPath = '/api/auth/auto-google'
+      const googleAuthUrl = `${baseUrl}${autoAuthPath}?provider=google`
+      const finalUrl = callbackUrl 
+        ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
+        : googleAuthUrl
+      
+      forceLinkedInRedirect(finalUrl)
     } else {
       // Normal Google sign-in flow
       signIn('google', { callbackUrl })
