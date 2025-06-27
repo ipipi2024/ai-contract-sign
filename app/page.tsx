@@ -127,7 +127,7 @@ export default function HomePage() {
             
             {/* D.S. Initials */}
             <div className="absolute top-1/2 left-1/6 float-6">
-              <div className="w-12 h-8 bg-red-50 rounded shadow-md border border-red-200">
+              <div className="w-9 h-6 bg-red-50 rounded shadow-md border border-red-200">
                 <div className="p-1 flex items-center justify-center h-full">
                   <span className="text-red-600 font-serif italic text-sm font-bold" style={{fontFamily: 'cursive'}}>DS</span>
                 </div>
@@ -182,7 +182,7 @@ export default function HomePage() {
 
             {/* Bottom right - DS initials */}
             <div className="absolute bottom-36 right-8 mobile-float-1">
-              <div className="w-7 h-5 bg-red-50 rounded shadow-md border border-red-200">
+              <div className="w-12 h-8 bg-red-50 rounded shadow-md border border-red-200">
                 <div className="p-0.5 flex items-center justify-center h-full">
                   <span className="text-red-600 font-serif italic text-xs font-bold" style={{fontFamily: 'cursive'}}>DS</span>
                 </div>
