@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
   }
 
-  // Create HTML with multiple browser-opening strategies
+  // Create HTML with improved browser-opening strategies
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="no">
+  <meta http-equiv="refresh" content="0; url=${targetUrl}">
   <title>Open in Browser - DreamSign</title>
   <style>
     * {
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
       cursor: pointer;
       width: 100%;
       max-width: 280px;
+      margin-bottom: 12px;
     }
     
     .button:hover {
@@ -116,7 +118,6 @@ export async function GET(request: NextRequest) {
     
     .secondary-button {
       background-color: #4a5568;
-      margin-top: 12px;
     }
     
     .secondary-button:hover {
@@ -264,26 +265,18 @@ export async function GET(request: NextRequest) {
     <p class="subtitle">To use Google Sign-In, please open this link in your phone's default browser</p>
     
     <div class="button-container">
-      <!-- Primary button with intent URL for Android -->
-      <a href="intent:${targetUrl}#Intent;action=android.intent.action.VIEW;scheme=https;end" class="button" id="androidButton">
+      <!-- Direct link button (primary method) -->
+      <a href="${targetUrl}" class="button" target="_top">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
-        Open in Browser
+        Continue to Sign In
       </a>
       
-      <!-- Fallback button for iOS/other -->
-      <a href="${targetUrl}" class="button hidden" id="iosButton" target="_blank" rel="noopener noreferrer">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-        </svg>
-        Open in Safari
+      <!-- Deep link attempts for different browsers -->
+      <a href="#" class="button secondary-button" onclick="tryDeepLinks(); return false;">
+        Try Opening External Browser
       </a>
-      
-      <!-- JavaScript-based button -->
-      <button class="button secondary-button" onclick="tryAllMethods()">
-        Try Alternative Method
-      </button>
     </div>
     
     <div class="divider">
@@ -323,165 +316,132 @@ export async function GET(request: NextRequest) {
     </div>
   </div>
 
-  <!-- Hidden iframe for additional attempt -->
-  <iframe id="hiddenFrame" style="display:none;"></iframe>
-
   <script>
     const targetUrl = ${JSON.stringify(targetUrl)};
     const userAgent = navigator.userAgent || '';
     const isAndroid = /android/i.test(userAgent);
     const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
     
-    // Show appropriate button based on platform
-    if (isIOS) {
-      document.getElementById('androidButton').classList.add('hidden');
-      document.getElementById('iosButton').classList.remove('hidden');
-    }
+    // Detect specific in-app browsers
+    const isFacebook = /FBAN|FBAV/i.test(userAgent);
+    const isInstagram = /Instagram/i.test(userAgent);
+    const isTwitter = /Twitter/i.test(userAgent);
+    const isLinkedIn = /LinkedInApp/i.test(userAgent);
     
-    function tryAllMethods() {
-      // Method 1: window.open with specific features
-      const newWindow = window.open(targetUrl, '_system', 'location=yes');
+    function tryDeepLinks() {
+      const attempts = [];
       
-      // Method 2: Use location.href after a delay
-      setTimeout(() => {
-        if (!newWindow || newWindow.closed) {
-          window.location.href = targetUrl;
-        }
-      }, 500);
-      
-      // Method 3: Create and click a link programmatically
-      setTimeout(() => {
-        const link = document.createElement('a');
-        link.href = targetUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }, 1000);
-      
-      // Method 4: Try iframe navigation (works in some cases)
-      setTimeout(() => {
-        document.getElementById('hiddenFrame').src = targetUrl;
-      }, 1500);
-      
-      // Method 5: For Android, try intent URL
       if (isAndroid) {
-        setTimeout(() => {
-          window.location.href = 'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;end';
-        }, 2000);
+        // Android intent URLs
+        attempts.push(
+          'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;package=com.android.chrome;end',
+          'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;package=com.brave.browser;end',
+          'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;package=com.microsoft.emmx;end',
+          'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;end'
+        );
+      } else if (isIOS) {
+        // iOS URL schemes
+        const encodedUrl = encodeURIComponent(targetUrl);
+        attempts.push(
+          'googlechrome://navigate?url=' + encodedUrl,
+          'firefox://open-url?url=' + encodedUrl,
+          'brave://open-url?url=' + encodedUrl,
+          'microsoft-edge-https://' + targetUrl.replace('https://', ''),
+          targetUrl // Fallback to direct URL
+        );
       }
       
-      // Method 6: For iOS, try to use the googlechrome:// scheme if Chrome is available
-      if (isIOS) {
+      // Try each attempt with a delay
+      attempts.forEach((url, index) => {
         setTimeout(() => {
-          const chromeUrl = targetUrl.replace(/^https:\/\//, 'googlechrome://');
-          window.location.href = chromeUrl;
-        }, 2000);
-      }
+          console.log('Attempting to open:', url);
+          window.location.href = url;
+        }, index * 500);
+      });
+      
+      // Final fallback - try window.open
+      setTimeout(() => {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }, attempts.length * 500);
     }
     
     function copyUrl() {
       const button = document.getElementById('copyButton');
       const urlDisplay = document.getElementById('urlDisplay');
       
-      const copyToClipboard = async (text) => {
-        try {
-          // Method 1: Modern clipboard API
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-            return true;
-          }
-          
-          // Method 2: Select and copy from the display element
-          if (window.getSelection) {
-            const selection = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(urlDisplay);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            
-            const successful = document.execCommand('copy');
-            selection.removeAllRanges();
-            
-            if (successful) return true;
-          }
-          
-          // Method 3: Create temporary input
-          const textArea = document.createElement('textarea');
-          textArea.value = text;
-          textArea.style.position = 'fixed';
-          textArea.style.top = '0';
-          textArea.style.left = '0';
-          textArea.style.width = '2em';
-          textArea.style.height = '2em';
-          textArea.style.padding = '0';
-          textArea.style.border = 'none';
-          textArea.style.outline = 'none';
-          textArea.style.boxShadow = 'none';
-          textArea.style.background = 'transparent';
-          
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          
-          const successful = document.execCommand('copy');
-          document.body.removeChild(textArea);
-          
-          return successful;
-        } catch (err) {
-          console.error('Failed to copy:', err);
-          return false;
-        }
-      };
+      // Create a temporary input element
+      const tempInput = document.createElement('input');
+      tempInput.value = targetUrl;
+      tempInput.style.position = 'absolute';
+      tempInput.style.left = '-9999px';
+      document.body.appendChild(tempInput);
       
-      copyToClipboard(targetUrl).then(success => {
-        if (success) {
-          button.textContent = '✓ Copied!';
-          button.classList.add('copied');
-          
-          setTimeout(() => {
-            button.textContent = 'Copy Link to Clipboard';
-            button.classList.remove('copied');
-          }, 2500);
-        } else {
-          // Fallback: select the text for manual copying
-          if (window.getSelection) {
-            const selection = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(urlDisplay);
-            selection.removeAllRanges();
-            selection.addRange(range);
+      // Select and copy
+      tempInput.select();
+      tempInput.setSelectionRange(0, 99999); // For mobile devices
+      
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (err) {
+        console.error('Copy failed:', err);
+      }
+      
+      document.body.removeChild(tempInput);
+      
+      if (copied) {
+        button.textContent = '✓ Copied!';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+          button.textContent = 'Copy Link to Clipboard';
+          button.classList.remove('copied');
+        }, 2500);
+      } else {
+        // Fallback to modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(targetUrl).then(() => {
+            button.textContent = '✓ Copied!';
+            button.classList.add('copied');
             
-            button.textContent = 'Press Ctrl+C or Cmd+C to copy';
             setTimeout(() => {
               button.textContent = 'Copy Link to Clipboard';
-            }, 3000);
-          }
+              button.classList.remove('copied');
+            }, 2500);
+          }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            alert('Please copy the URL manually');
+          });
         }
-      });
+      }
     }
+    
+    // Auto-redirect attempt on page load
+    window.addEventListener('load', function() {
+      // Try meta refresh first (already in HTML head)
+      
+      // Then try JavaScript redirect after a short delay
+      setTimeout(() => {
+        // For specific apps, try their known methods
+        if (isFacebook || isInstagram) {
+          // Facebook/Instagram on Android might respond to intent
+          if (isAndroid) {
+            window.location.href = 'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;end';
+          }
+        } else {
+          // For other apps, try direct navigation
+          window.location.replace(targetUrl);
+        }
+      }, 1000);
+    });
     
     // Make URL selectable on click
     document.getElementById('urlDisplay').addEventListener('click', function() {
-      if (window.getSelection) {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(this);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-    });
-    
-    // Try opening automatically on load for specific browsers
-    window.addEventListener('load', function() {
-      // For Facebook/Instagram on Android, the intent URL might work
-      if (isAndroid && (/FBAN|FBAV|Instagram/i.test(userAgent))) {
-        setTimeout(() => {
-          window.location.href = 'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;package=com.android.chrome;end';
-        }, 100);
-      }
+      const range = document.createRange();
+      range.selectNodeContents(this);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
     });
   </script>
 </body>
