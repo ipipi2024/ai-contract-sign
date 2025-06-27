@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
   }
 
-  // Create HTML that provides clear instructions without automatic redirects
+  // Create HTML with multiple browser-opening strategies
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -112,6 +112,15 @@ export async function GET(request: NextRequest) {
       width: 20px;
       height: 20px;
       margin-right: 8px;
+    }
+    
+    .secondary-button {
+      background-color: #4a5568;
+      margin-top: 12px;
+    }
+    
+    .secondary-button:hover {
+      background-color: #2d3748;
     }
     
     .divider {
@@ -220,6 +229,10 @@ export async function GET(request: NextRequest) {
       color: #22543D;
     }
     
+    .hidden {
+      display: none;
+    }
+    
     @media (max-width: 640px) {
       .container {
         padding: 24px;
@@ -251,16 +264,30 @@ export async function GET(request: NextRequest) {
     <p class="subtitle">To use Google Sign-In, please open this link in your phone's default browser</p>
     
     <div class="button-container">
-      <a href="${targetUrl}" class="button" target="_blank" rel="noopener">
+      <!-- Primary button with intent URL for Android -->
+      <a href="intent:${targetUrl}#Intent;action=android.intent.action.VIEW;scheme=https;end" class="button" id="androidButton">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
         Open in Browser
       </a>
+      
+      <!-- Fallback button for iOS/other -->
+      <a href="${targetUrl}" class="button hidden" id="iosButton" target="_blank" rel="noopener noreferrer">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        Open in Safari
+      </a>
+      
+      <!-- JavaScript-based button -->
+      <button class="button secondary-button" onclick="tryAllMethods()">
+        Try Alternative Method
+      </button>
     </div>
     
     <div class="divider">
-      <span>If that doesn't work</span>
+      <span>Manual Instructions</span>
     </div>
     
     <div class="instructions">
@@ -273,7 +300,7 @@ export async function GET(request: NextRequest) {
       
       <div class="app-instruction">
         <span class="app-name">🐦 Twitter / X</span>
-        <span class="app-steps">Tap the share icon → Select "Open in Safari" or "Open in Browser"</span>
+        <span class="app-steps">Tap the share icon → Select "Open in Safari" or "Open in Chrome"</span>
       </div>
       
       <div class="app-instruction">
@@ -296,13 +323,69 @@ export async function GET(request: NextRequest) {
     </div>
   </div>
 
+  <!-- Hidden iframe for additional attempt -->
+  <iframe id="hiddenFrame" style="display:none;"></iframe>
+
   <script>
+    const targetUrl = ${JSON.stringify(targetUrl)};
+    const userAgent = navigator.userAgent || '';
+    const isAndroid = /android/i.test(userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+    
+    // Show appropriate button based on platform
+    if (isIOS) {
+      document.getElementById('androidButton').classList.add('hidden');
+      document.getElementById('iosButton').classList.remove('hidden');
+    }
+    
+    function tryAllMethods() {
+      // Method 1: window.open with specific features
+      const newWindow = window.open(targetUrl, '_system', 'location=yes');
+      
+      // Method 2: Use location.href after a delay
+      setTimeout(() => {
+        if (!newWindow || newWindow.closed) {
+          window.location.href = targetUrl;
+        }
+      }, 500);
+      
+      // Method 3: Create and click a link programmatically
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = targetUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, 1000);
+      
+      // Method 4: Try iframe navigation (works in some cases)
+      setTimeout(() => {
+        document.getElementById('hiddenFrame').src = targetUrl;
+      }, 1500);
+      
+      // Method 5: For Android, try intent URL
+      if (isAndroid) {
+        setTimeout(() => {
+          window.location.href = 'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;end';
+        }, 2000);
+      }
+      
+      // Method 6: For iOS, try to use the googlechrome:// scheme if Chrome is available
+      if (isIOS) {
+        setTimeout(() => {
+          const chromeUrl = targetUrl.replace(/^https:\/\//, 'googlechrome://');
+          window.location.href = chromeUrl;
+        }, 2000);
+      }
+    }
+    
     function copyUrl() {
-      const targetUrl = ${JSON.stringify(targetUrl)};
       const button = document.getElementById('copyButton');
       const urlDisplay = document.getElementById('urlDisplay');
       
-      // Try multiple methods to copy
       const copyToClipboard = async (text) => {
         try {
           // Method 1: Modern clipboard API
@@ -388,6 +471,16 @@ export async function GET(request: NextRequest) {
         range.selectNodeContents(this);
         selection.removeAllRanges();
         selection.addRange(range);
+      }
+    });
+    
+    // Try opening automatically on load for specific browsers
+    window.addEventListener('load', function() {
+      // For Facebook/Instagram on Android, the intent URL might work
+      if (isAndroid && (/FBAN|FBAV|Instagram/i.test(userAgent))) {
+        setTimeout(() => {
+          window.location.href = 'intent:' + targetUrl + '#Intent;action=android.intent.action.VIEW;scheme=https;package=com.android.chrome;end';
+        }, 100);
       }
     });
   </script>
