@@ -2,6 +2,7 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
+import { isEmbeddedBrowser, redirectToMainSiteWithGoogleAuth } from '@/lib/utils'
 
 interface GoogleSignInButtonProps {
   callbackUrl?: string
@@ -13,13 +14,20 @@ export default function GoogleSignInButton({
   text = 'Sign in with Google' 
 }: GoogleSignInButtonProps) {
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl })
+    // Check if user is in an embedded browser
+    if (isEmbeddedBrowser()) {
+      // Redirect to main site with Google auth already initiated
+      redirectToMainSiteWithGoogleAuth(callbackUrl)
+    } else {
+      // Normal Google sign-in flow
+      signIn('google', { callbackUrl })
+    }
   }
 
   return (
     <button
       onClick={handleGoogleSignIn}
-      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150"
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
