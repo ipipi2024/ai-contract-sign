@@ -68,15 +68,18 @@ export default withAuth(
     const pathname = req.nextUrl.pathname;
     const userAgent = req.headers.get('user-agent') || '';
     
+    // TEMPORARILY DISABLE LINKEDIN DETECTION FOR TESTING
+    // Check if user is forcing to stay in app (for testing)
+    const forceInApp = req.nextUrl.searchParams.get('force_in_app') === 'true';
+    
     // Skip middleware for the open-in-browser API itself
     if (pathname === '/api/open-in-browser') {
       return NextResponse.next();
     }
     
-    // Check if user is forcing to stay in app (for testing)
-    const forceInApp = req.nextUrl.searchParams.get('force_in_app') === 'true';
-    
+    // TEMPORARILY COMMENTED OUT FOR TESTING
     // Check if it's from an in-app browser and should be redirected
+    /*
     if (isInAppBrowser(userAgent) && shouldRedirectPath(pathname) && !forceInApp) {
       console.log('In-app browser detected, redirecting to browser opener');
       console.log('User Agent:', userAgent);
@@ -93,6 +96,7 @@ export default withAuth(
       
       return NextResponse.redirect(url);
     }
+    */
     
     // Define public routes that don't require authentication
     const publicPaths = [
