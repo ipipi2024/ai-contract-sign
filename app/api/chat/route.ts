@@ -86,7 +86,9 @@ Be specific and helpful. Focus on the most important changes.
 
 Say something like: "I've done ..., in order to complete the contract I need you to provide: [bulleted list of unknowns]"
 If there are no unknowns in the list, do not say anything like this.
-Essentially, if no unknowns are listed, do not mention anything about the unknowns.`;
+Essentially, if no unknowns are listed, do not mention anything about the unknowns.
+
+Do NOT request signatures or signature dates, that is already communicated to the user. Image URLS and signed names do NOT need to be requested, as their absence is already communicated to the user.`;
     } else {
       systemPrompt = `You are an AI contract assistant helping users improve their contracts. 
 
