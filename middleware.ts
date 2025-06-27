@@ -39,6 +39,7 @@ function isInAppBrowser(userAgent: string): boolean {
     /Linkedin/i,          // LinkedIn (alternate)
     /baiduboxapp/i,       // Baidu
     /baidubrowser/i,      // Baidu Browser
+    /SamsungBrowser/i,    // Samsung Internet (sometimes acts like in-app)
   ];
 
   return inAppBrowserPatterns.some(pattern => pattern.test(userAgent));
@@ -72,13 +73,11 @@ export default withAuth(
       return NextResponse.next();
     }
     
-    // IMPORTANT: Check if we've already attempted a redirect
-    // This prevents infinite loops
-    const hasRedirected = req.nextUrl.searchParams.get('redirected') === 'true';
+    // Check if user is forcing to stay in app (for testing)
     const forceInApp = req.nextUrl.searchParams.get('force_in_app') === 'true';
     
     // Check if it's from an in-app browser and should be redirected
-    if (isInAppBrowser(userAgent) && shouldRedirectPath(pathname) && !forceInApp && !hasRedirected) {
+    if (isInAppBrowser(userAgent) && shouldRedirectPath(pathname) && !forceInApp) {
       console.log('In-app browser detected, redirecting to browser opener');
       console.log('User Agent:', userAgent);
       console.log('Path:', pathname);
@@ -86,23 +85,13 @@ export default withAuth(
       // Construct the full URL
       const protocol = req.headers.get('x-forwarded-proto') || 'https';
       const host = req.headers.get('host') || '';
+      const targetUrl = `${protocol}://${host}${pathname}${req.nextUrl.search}`;
       
-      // Build target URL with a flag to prevent loops
-      const targetUrl = new URL(`${protocol}://${host}${pathname}`, req.url);
-      // Copy all search params except our control params
-      req.nextUrl.searchParams.forEach((value, key) => {
-        if (key !== 'redirected' && key !== 'force_in_app') {
-          targetUrl.searchParams.set(key, value);
-        }
-      });
-      // Add redirected flag to prevent loops
-      targetUrl.searchParams.set('redirected', 'true');
+      // Add a flag to prevent redirect loops
+      const url = new URL(`/api/open-in-browser`, req.url);
+      url.searchParams.set('url', targetUrl);
       
-      // Redirect to the open-in-browser endpoint
-      const redirectUrl = new URL('/api/open-in-browser', req.url);
-      redirectUrl.searchParams.set('url', targetUrl.toString());
-      
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(url);
     }
     
     // Define public routes that don't require authentication
@@ -114,7 +103,7 @@ export default withAuth(
       '/auth/error',
       '/contracts/help',
       '/',
-      '/api/open-in-browser',
+      '/api/open-in-browser', // Add this to public paths
     ];
     
     // Define public API routes
@@ -124,7 +113,7 @@ export default withAuth(
       '/api/contracts/[id]/finalize',
       '/api/contracts/[id]/pdf',
       '/api/contracts/[id]',
-      '/api/open-in-browser',
+      '/api/open-in-browser', // Add this as well
     ];
     
     // Check for dynamic sign path
