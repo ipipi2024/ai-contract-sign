@@ -2,168 +2,204 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const redirectUrl = searchParams.get('url') || '/';
-  const userAgent = request.headers.get('user-agent') || '';
+  const targetUrl = request.nextUrl.searchParams.get('url');
   
-  // Detect platform
-  const isAndroid = /android/i.test(userAgent);
-  const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-  
-  // Generate the HTML page that will perform the redirect
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Opening in Browser...</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          margin: 0;
-          background: #f5f5f5;
-        }
-        .container {
-          text-align: center;
-          padding: 20px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          max-width: 400px;
-        }
-        .spinner {
-          width: 50px;
-          height: 50px;
-          border: 3px solid #f3f3f3;
-          border-top: 3px solid #3498db;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        h1 { font-size: 24px; margin-bottom: 10px; }
-        p { color: #666; margin-bottom: 20px; }
-        .button {
-          display: inline-block;
-          padding: 12px 24px;
-          background: #3498db;
-          color: white;
-          text-decoration: none;
-          border-radius: 6px;
-          margin: 5px;
-        }
-        .hidden { display: none; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="spinner"></div>
-        <h1>Opening in Browser...</h1>
-        <p>Redirecting you to your default browser</p>
-        
-        <div id="manual-buttons" class="hidden">
-          <p>If the browser didn't open automatically:</p>
-          ${isAndroid ? `
-            <a href="intent:${redirectUrl}#Intent;scheme=https;package=com.android.chrome;end" class="button">Open in Chrome</a>
-            <a href="intent:${redirectUrl}#Intent;scheme=https;action=android.intent.action.VIEW;end" class="button">Open in Browser</a>
-          ` : ''}
-          ${isIOS ? `
-            <a href="${redirectUrl.replace('https://', 'googlechrome://')}" class="button">Open in Chrome</a>
-            <a href="${redirectUrl}" target="_blank" class="button">Open in Safari</a>
-          ` : ''}
-        </div>
-      </div>
+  if (!targetUrl) {
+    return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
+  }
 
-      <script>
-        const targetUrl = '${redirectUrl}';
-        let redirectAttempted = false;
+  // Create HTML that attempts multiple methods to open in external browser
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opening in Browser - DreamSign</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f7fafc;
+      padding: 20px;
+    }
+    .container {
+      text-align: center;
+      max-width: 500px;
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2d3748;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #4a5568;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #3182ce;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .button:hover {
+      background-color: #2c5282;
+    }
+    .instructions {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .instruction-item {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .app-name {
+      font-weight: 600;
+      color: #2d3748;
+    }
+    .copy-button {
+      margin-top: 16px;
+      padding: 8px 16px;
+      background-color: #e2e8f0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #2d3748;
+    }
+    .copy-button:hover {
+      background-color: #cbd5e0;
+    }
+    .url-display {
+      margin-top: 12px;
+      padding: 12px;
+      background-color: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      word-break: break-all;
+      font-size: 14px;
+      color: #4a5568;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Please Open in Your Browser</h1>
+    <p>For the best experience and to use Google Sign-In, please open DreamSign in your device's default browser.</p>
+    
+    <a href="${targetUrl}" class="button" id="openButton">Open in Browser</a>
+    
+    <div class="instructions">
+      <h2 style="font-size: 18px; margin-bottom: 16px;">If the button doesn't work:</h2>
+      
+      <div class="instruction-item">
+        <span class="app-name">Instagram/Facebook:</span> Tap the three dots (⋯) in the top right → "Open in Browser"
+      </div>
+      
+      <div class="instruction-item">
+        <span class="app-name">Twitter/X:</span> Tap the share icon → "Open in Safari" (iOS) or "Open in Browser" (Android)
+      </div>
+      
+      <div class="instruction-item">
+        <span class="app-name">LinkedIn:</span> Tap the three dots (⋯) → "Open in external browser"
+      </div>
+      
+      <div class="instruction-item">
+        <span class="app-name">Other apps:</span> Look for a menu option to open in your default browser
+      </div>
+      
+      <p style="margin-top: 24px; font-size: 14px;">Or copy this URL and paste it in your browser:</p>
+      <div class="url-display">${targetUrl}</div>
+      <button class="copy-button" onclick="copyUrl()">Copy URL</button>
+    </div>
+  </div>
+
+  <script>
+    const targetUrl = ${JSON.stringify(targetUrl)};
+    
+    // Function to copy URL to clipboard
+    function copyUrl() {
+      navigator.clipboard.writeText(targetUrl).then(() => {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = targetUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
         
-        function attemptRedirect() {
-          if (redirectAttempted) return;
-          redirectAttempted = true;
-          
-          const isAndroid = ${isAndroid};
-          const isIOS = ${isIOS};
-          
-          if (isAndroid) {
-            // Try multiple Android methods
-            const methods = [
-              // Method 1: Chrome intent
-              'intent:' + targetUrl + '#Intent;scheme=https;package=com.android.chrome;end',
-              // Method 2: Generic browser intent
-              'intent:' + targetUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;end',
-              // Method 3: Direct Chrome
-              'googlechrome://navigate?url=' + encodeURIComponent(targetUrl)
-            ];
-            
-            let methodIndex = 0;
-            function tryNextMethod() {
-              if (methodIndex < methods.length) {
-                window.location.href = methods[methodIndex];
-                methodIndex++;
-                setTimeout(tryNextMethod, 500);
-              } else {
-                // Show manual buttons after all attempts
-                document.getElementById('manual-buttons').classList.remove('hidden');
-              }
-            }
-            tryNextMethod();
-            
-          } else if (isIOS) {
-            // iOS methods
-            const chromeUrl = targetUrl.replace('https://', 'googlechrome://');
-            const firefoxUrl = 'firefox://open-url?url=' + encodeURIComponent(targetUrl);
-            
-            // Create an invisible iframe to attempt Chrome redirect
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = chromeUrl;
-            document.body.appendChild(iframe);
-            
-            // Try multiple methods with delays
-            setTimeout(() => {
-              window.location.href = chromeUrl;
-            }, 100);
-            
-            setTimeout(() => {
-              // Try opening in new window (sometimes works)
-              window.open(targetUrl, '_blank');
-            }, 600);
-            
-            setTimeout(() => {
-              // Show manual buttons
-              document.getElementById('manual-buttons').classList.remove('hidden');
-            }, 1200);
-            
-          } else {
-            // Desktop or unknown - try simple redirect
-            window.location.href = targetUrl;
-          }
-        }
-        
-        // Start redirect attempts immediately
-        attemptRedirect();
-        
-        // Also try on user interaction (more likely to work)
-        document.addEventListener('click', function() {
-          if (!redirectAttempted) {
-            attemptRedirect();
-          }
-        });
-      </script>
-    </body>
-    </html>
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 2000);
+      });
+    }
+    
+    // Attempt to open in external browser automatically
+    function attemptExternalOpen() {
+      // Method 1: Direct navigation (works in some cases)
+      window.location.href = targetUrl;
+      
+      // Method 2: Window.open (might work in some browsers)
+      setTimeout(() => {
+        window.open(targetUrl, '_blank');
+      }, 100);
+      
+      // Method 3: Create and click a link
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = targetUrl;
+        link.target = '_blank';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, 200);
+    }
+    
+    // Only attempt automatic opening on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attemptExternalOpen);
+    } else {
+      attemptExternalOpen();
+    }
+    
+    // Add click handler to button for manual attempts
+    document.getElementById('openButton').addEventListener('click', (e) => {
+      e.preventDefault();
+      attemptExternalOpen();
+    });
+  </script>
+</body>
+</html>
   `;
-  
+
   return new NextResponse(html, {
-    headers: { 'Content-Type': 'text/html' },
+    headers: {
+      'Content-Type': 'text/html',
+    },
   });
 }

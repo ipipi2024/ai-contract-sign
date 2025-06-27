@@ -1,3 +1,4 @@
+// middleware.ts
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -26,9 +27,40 @@ function isInAppBrowser(userAgent: string): boolean {
     /WebView/i,
     /wv/i,
     /\bGSA\b/i,          // Google Search App
+    // Additional patterns
+    /FB_IAB/i,            // Facebook In-App Browser
+    /FBIOS/i,             // Facebook iOS
+    /FBBR/i,              // Facebook Browser
+    /TwitterAndroid/i,    // Twitter Android
+    /Instagram.*Android/i, // Instagram Android
+    /KAKAOTALK/i,         // KakaoTalk
+    /NAVER/i,             // Naver
+    /Flipboard/i,         // Flipboard
+    /Linkedin/i,          // LinkedIn (alternate)
+    /baiduboxapp/i,       // Baidu
+    /baidubrowser/i,      // Baidu Browser
+    /SamsungBrowser/i,    // Samsung Internet (sometimes acts like in-app)
   ];
 
   return inAppBrowserPatterns.some(pattern => pattern.test(userAgent));
+}
+
+// Helper to check if we should redirect this path
+function shouldRedirectPath(pathname: string): boolean {
+  // Always redirect OAuth paths and main app pages from in-app browsers
+  const protectedPaths = [
+    '/auth/signin',
+    '/auth/signup',
+    '/auth/error',
+    '/dashboard',
+    '/contracts',
+    '/api/auth/signin',
+    '/api/auth/callback',
+    '/api/auth/session',
+  ];
+  
+  // Check if it's a protected path or the root when it might lead to auth
+  return protectedPaths.some(path => pathname.startsWith(path)) || pathname === '/';
 }
 
 export default withAuth(
@@ -36,39 +68,42 @@ export default withAuth(
     const pathname = req.nextUrl.pathname;
     const userAgent = req.headers.get('user-agent') || '';
     
-    // Debugging: Log the pathname and user agent
-    console.log('Request Path:', pathname);
-    console.log('User Agent:', userAgent);
+    // Skip middleware for the open-in-browser API itself
+    if (pathname === '/api/open-in-browser') {
+      return NextResponse.next();
+    }
     
-    // Check if this is an OAuth-related path and from an in-app browser
-    const isOAuthPath = pathname.includes('/auth/signin') || 
-                       pathname.includes('/auth/signup') ||
-                       pathname.includes('/api/auth/');
-    
-    // Check if the user is forcing to stay in app (for testing)
+    // Check if user is forcing to stay in app (for testing)
     const forceInApp = req.nextUrl.searchParams.get('force_in_app') === 'true';
     
-    if (isOAuthPath && isInAppBrowser(userAgent) && !forceInApp) {
-      console.log('In-app browser detected on OAuth path, redirecting to browser opener');
+    // Check if it's from an in-app browser and should be redirected
+    if (isInAppBrowser(userAgent) && shouldRedirectPath(pathname) && !forceInApp) {
+      console.log('In-app browser detected, redirecting to browser opener');
+      console.log('User Agent:', userAgent);
+      console.log('Path:', pathname);
       
-      // Get the full URL that should be opened in the browser
+      // Construct the full URL
       const protocol = req.headers.get('x-forwarded-proto') || 'https';
       const host = req.headers.get('host') || '';
       const targetUrl = `${protocol}://${host}${pathname}${req.nextUrl.search}`;
       
-      // Redirect to the browser opener API
-      return NextResponse.redirect(new URL(`/api/open-in-browser?url=${encodeURIComponent(targetUrl)}`, req.url));
+      // Add a flag to prevent redirect loops
+      const url = new URL(`/api/open-in-browser`, req.url);
+      url.searchParams.set('url', targetUrl);
+      
+      return NextResponse.redirect(url);
     }
     
     // Define public routes that don't require authentication
     const publicPaths = [
-      '/contracts/sign',  // Token-based signing page (accessible by non-users)
+      '/contracts/sign',
       '/thank-you',
       '/auth/signin',
       '/auth/signup',
       '/auth/error',
       '/contracts/help',
       '/',
+      '/api/open-in-browser', // Add this to public paths
     ];
     
     // Define public API routes
@@ -77,10 +112,11 @@ export default withAuth(
       '/api/contracts/[id]/sign',
       '/api/contracts/[id]/finalize',
       '/api/contracts/[id]/pdf',
-      '/api/contracts/[id]', // For fetching contract in sign page
+      '/api/contracts/[id]',
+      '/api/open-in-browser', // Add this as well
     ];
     
-    // Also allow the old contract/[id]/sign path if needed during transition
+    // Check for dynamic sign path
     const isDynamicSignPath = /^\/contracts\/[^\/]+\/sign/.test(pathname);
     
     // Check if it's a public page route
@@ -93,27 +129,34 @@ export default withAuth(
     });
     
     if (isPublicPage || isPublicApi) {
-      // Allow non-authenticated users to access contract signing routes
       return NextResponse.next();
     }
     
-    // If the route is not public, ensure authentication
-    return NextResponse.redirect(new URL('/auth/signin', req.url));
+    // For authenticated routes, continue with auth check
+    return NextResponse.next();
   },
   {
     callbacks: {
       authorized: ({ req, token }) => {
         const pathname = req.nextUrl.pathname;
         
-        // Paths that should remain publicly accessible
-        const publicPaths = ['/contracts/sign', '/thank-you', '/auth/signin', '/auth/signup', '/auth/error', '/'];
+        // Public paths
+        const publicPaths = [
+          '/contracts/sign',
+          '/thank-you',
+          '/auth/signin',
+          '/auth/signup',
+          '/auth/error',
+          '/',
+          '/api/open-in-browser',
+        ];
         
-        // Check if the current path is a public one
+        // Allow public paths
         if (publicPaths.some(path => pathname.startsWith(path))) {
-          return true;  // Allow non-authenticated access
+          return true;
         }
         
-        // For other routes, require authentication
+        // Require authentication for other routes
         return !!token;
       },
     },
@@ -132,9 +175,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
-     * - /api/auth/* (NextAuth routes)
-     * - /api/contracts/* (public contract API routes)
      */
-    "/((?!_next/static|_next/image|favicon.ico|public|\\/api\\/auth|\\/api\\/contracts).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 };
