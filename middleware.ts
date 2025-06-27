@@ -102,6 +102,8 @@ export default withAuth(
       '/auth/signup',
       '/auth/error',
       '/contracts/help',
+      '/open-external',
+      '/test-linkedin',
       '/',
       '/api/open-in-browser', // Add this to public paths
     ];
@@ -147,6 +149,8 @@ export default withAuth(
           '/auth/signin',
           '/auth/signup',
           '/auth/error',
+          '/open-external',
+          '/test-linkedin',
           '/',
           '/api/open-in-browser',
         ];

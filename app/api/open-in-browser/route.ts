@@ -5,10 +5,17 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url') || '/';
   const userAgent = request.headers.get('user-agent') || '';
   
-  if (userAgent.includes('LinkedIn')) {
-    // For LinkedIn, redirect to a page that opens in external browser
-    return NextResponse.redirect(`/open-external?url=${encodeURIComponent(url)}`, 302);
+  // Check if it's LinkedIn's embedded browser
+  const isLinkedInBrowser = userAgent.includes('LinkedIn') || 
+                           userAgent.includes('FBAN') || 
+                           userAgent.includes('FBAV');
+  
+  if (isLinkedInBrowser) {
+    // For LinkedIn browser, redirect to a page that will open in external browser
+    const redirectUrl = `/open-external?url=${encodeURIComponent(url)}`;
+    return NextResponse.redirect(redirectUrl, 302);
   }
   
+  // If not LinkedIn browser, just redirect normally
   return NextResponse.redirect(url, 302);
 }
