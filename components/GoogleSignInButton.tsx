@@ -2,7 +2,7 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { isEmbeddedBrowser, isLinkedInBrowser, forceLinkedInRedirect } from '@/lib/utils'
+import { isEmbeddedBrowser } from '@/lib/utils'
 
 interface GoogleSignInButtonProps {
   callbackUrl?: string
@@ -13,36 +13,13 @@ export default function GoogleSignInButton({
   callbackUrl = '/', 
   text = 'Sign in with Google' 
 }: GoogleSignInButtonProps) {
+  // Hide the button completely if in embedded browser
+  if (isEmbeddedBrowser()) {
+    return null
+  }
+
   const handleGoogleSignIn = () => {
-    // Check if user is in LinkedIn specifically (most problematic)
-    if (isLinkedInBrowser()) {
-      // Use ultra-aggressive LinkedIn redirect
-      const baseUrl = 'https://dreamsign.ai'
-      const autoAuthPath = '/api/auth/auto-google'
-      const googleAuthUrl = `${baseUrl}${autoAuthPath}?provider=google`
-      const finalUrl = callbackUrl 
-        ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
-        : googleAuthUrl
-      
-      forceLinkedInRedirect(finalUrl)
-      return
-    }
-    
-    // Check if user is in any other embedded browser
-    if (isEmbeddedBrowser()) {
-      // Use force redirect for more reliable navigation from embedded browsers
-      const baseUrl = 'https://dreamsign.ai'
-      const autoAuthPath = '/api/auth/auto-google'
-      const googleAuthUrl = `${baseUrl}${autoAuthPath}?provider=google`
-      const finalUrl = callbackUrl 
-        ? `${googleAuthUrl}&callbackUrl=${encodeURIComponent(callbackUrl)}`
-        : googleAuthUrl
-      
-      forceLinkedInRedirect(finalUrl) // Use the same aggressive method for all embedded browsers
-    } else {
-      // Normal Google sign-in flow
-      signIn('google', { callbackUrl })
-    }
+    signIn('google', { callbackUrl })
   }
 
   return (
