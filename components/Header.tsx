@@ -176,19 +176,19 @@ export default function Header({ authenticated = true }: HeaderProps) {
       {authenticated && isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
           <div className="px-4 py-2 space-y-1 flex flex-col justify-center min-h-[200px]">
-            <Link 
+            {/* <Link 
               href="/dashboard" 
               className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100 active:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
-            </Link>
+            </Link> */}
             <Link 
               href="/contracts" 
               className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100 active:text-gray-900 transition-all"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Contracts
+              Dashboard
             </Link>
             
             {isAdmin && (
