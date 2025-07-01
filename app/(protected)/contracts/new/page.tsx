@@ -1,3 +1,4 @@
+// app/(protected)/contracts/new/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -9,7 +10,7 @@ import { server_log } from '@/app/actions/log';
 import FileUploadZone from "@/components/FileUploadZone";
 import AttachmentList from "@/components/AttachmentList";
 import { parseDocument } from "@/lib/documentParser";
-
+import { Upload, FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface ErrorModalProps {
@@ -32,9 +33,15 @@ interface Attachment {
 const ErrorModal = ({ isOpen, onClose, title, message }: ErrorModalProps) => {
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black opacity-50"></div>
+      <div className="fixed inset-0 bg-black opacity-50" onClick={handleBackdropClick}></div>
       <div className="relative bg-white rounded-lg max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -67,6 +74,7 @@ export default function NewContractPage() {
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -249,133 +257,185 @@ export default function NewContractPage() {
               ← Back to Dashboard
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">
-              Generate Contract with AI
+              Create New Contract
             </h1>
           </div>
 
-          {/* Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white rounded-lg shadow-md p-6 space-y-6"
-          >
-            {/* Contract Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Describe Your Contract
-              </label>
-              <div className="relative">
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onPaste={handlePaste}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e as any);
-                    }
-                  }}
-                  className="w-full p-4 pr-12 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 h-40 resize-none"
-                  placeholder="Create a freelance contract between ABC Corp and John Smith for website development. $5,000 payment in two milestones, 6-week timeline, includes hosting setup and training."
-                />
-                {/* Attachment button */}
+          {/* Tab Navigation */}
+          <div className="bg-white rounded-lg shadow-md mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex">
                 <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-3 right-3 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Attach files"
+                  onClick={() => setActiveTab('generate')}
+                  className={`py-3 px-6 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'generate'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    Generate with AI
+                  </div>
                 </button>
-              </div>
-              <div className="text-sm text-gray-500 mt-2 flex justify-between items-center">
-                <span>{prompt.length} characters</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Upload files
-                  </button>
-                  <span className="text-gray-400">•</span>
-                  <span>PDF, DOCX, TXT, Images</span>
-                </div>
-              </div>
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className={`py-3 px-6 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'upload'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload Document
+                  </div>
+                </button>
+              </nav>
             </div>
 
-            {/* Attachments List */}
-            {attachments.length > 0 && (
-              <AttachmentList
-                attachments={attachments}
-                onRemove={removeAttachment}
-              />
-            )}
+            {/* Tab Content */}
+            <div className="p-6">
+              {activeTab === 'generate' ? (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Contract Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Describe Your Contract
+                    </label>
+                    <div className="relative">
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onPaste={handlePaste}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e as any);
+                          }
+                        }}
+                        className="w-full p-4 pr-12 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 h-40 resize-none"
+                        placeholder="Create a freelance contract between ABC Corp and John Smith for website development. $5,000 payment in two milestones, 6-week timeline, includes hosting setup and training."
+                      />
+                      {/* Attachment button */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-3 right-3 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Attach files"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="text-sm text-gray-500 mt-2 flex justify-between items-center">
+                      <span>{prompt.length} characters</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          Upload files
+                        </button>
+                        <span className="text-gray-400">•</span>
+                        <span>PDF, DOCX, TXT, Images</span>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* File Upload Zone - Only show when dragging */}
-            <FileUploadZone
-              onFileSelect={handleFileSelect}
-              fileInputRef={fileInputRef}
-              attachments={attachments}
-            />
+                  {/* Attachments List */}
+                  {attachments.length > 0 && (
+                    <AttachmentList
+                      attachments={attachments}
+                      onRemove={removeAttachment}
+                    />
+                  )}
 
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png"
-              onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
-              className="hidden"
-            />
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
-              <Link
-                href="/dashboard"
-                className="px-6 py-3 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={loading || (!prompt.trim() && attachments.length === 0)}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
-              >
-                {loading ? (
-                  <span className="flex items-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
+                  {/* File Upload Zone - Only show when dragging */}
+                  <FileUploadZone
+                    onFileSelect={handleFileSelect}
+                    fileInputRef={fileInputRef}
+                    attachments={attachments}
+                  />
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png"
+                    onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+                    className="hidden"
+                  />
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end space-x-4">
+                    <Link
+                      href="/dashboard"
+                      className="px-6 py-3 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
                     >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Generating Contract...
-                  </span>
-                ) : (
-                  "Generate"
-                )}
-              </button>
+                      Cancel
+                    </Link>
+                    <button
+                      type="submit"
+                      disabled={loading || (!prompt.trim() && attachments.length === 0)}
+                      className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                    >
+                      {loading ? (
+                        <span className="flex items-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Generating Contract...
+                        </span>
+                      ) : (
+                        "Generate"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Upload Tab Content */
+                <div className="text-center py-8">
+                  <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Upload your existing contract
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    We'll detect signature fields and make it fillable while preserving formatting
+                  </p>
+                  <Link
+                    href="/contracts/upload"
+                    className="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Go to Upload Page
+                  </Link>
+                </div>
+              )}
             </div>
-            
-          </form>
+          </div>
         </div>
       </div>
 

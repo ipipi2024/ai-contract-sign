@@ -1,3 +1,4 @@
+//components/FileUploadZone.tsx
 import React, { useState, DragEvent, useEffect } from 'react';
 
 interface FileUploadZoneProps {
