@@ -33,6 +33,7 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
   const [startX, setStartX] = useState(0);
   const [currentX, setCurrentX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [canSwipe, setCanSwipe] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -41,29 +42,40 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
     const isInteractive = 
       target.tagName === 'BUTTON' ||
       target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
       target.tagName === 'A' ||
       target.closest('button') ||
       target.closest('a') ||
+      target.closest('input') ||
+      target.closest('textarea') ||
       target.closest('[data-index]') || // Signature fields
       target.closest('[data-signature-field]') || // Signature fields with specific attribute
       target.closest('[onClick]') ||
-      target.closest('.cursor-pointer');
+      target.closest('.cursor-pointer') ||
+      target.closest('.hover\\:border-gray-300'); // Contract blocks that open modal
     
     if (isInteractive) {
+      setCanSwipe(false);
       return; // Don't start swipe if touching an interactive element
     }
     
+    setCanSwipe(true);
     setStartX(e.touches[0].clientX);
     setIsDragging(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || !canSwipe) return;
     setCurrentX(e.touches[0].clientX);
   };
 
   const handleTouchEnd = () => {
-    if (!isDragging) return;
+    if (!isDragging || !canSwipe) {
+      setIsDragging(false);
+      setCurrentX(0);
+      setCanSwipe(true);
+      return;
+    }
     
     const diffX = startX - currentX;
     const threshold = 50; // minimum swipe distance
@@ -80,12 +92,13 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
 
     setIsDragging(false);
     setCurrentX(0);
+    setCanSwipe(true);
   };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Original Tab Navigation Style */}
-      <div className="flex border-b border-gray-200">
+      {/* Tab Navigation with visual swipe indicator */}
+      <div className="flex border-b border-gray-200 relative">
         <button
           onClick={() => setActiveTab('contract')}
           className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
@@ -106,6 +119,11 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
         >
           Contract Agent
         </button>
+      </div>
+
+      {/* Swipe hint */}
+      <div className="text-xs text-gray-500 text-center py-1 bg-gray-50">
+        Swipe left/right to switch tabs
       </div>
 
       {/* Content Container */}
