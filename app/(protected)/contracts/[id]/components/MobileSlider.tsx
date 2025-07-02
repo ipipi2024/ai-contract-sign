@@ -36,6 +36,23 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Check if the touch target is an interactive element
+    const target = e.target as HTMLElement;
+    const isInteractive = 
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'A' ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('[data-index]') || // Signature fields
+      target.closest('[data-signature-field]') || // Signature fields with specific attribute
+      target.closest('[onClick]') ||
+      target.closest('.cursor-pointer');
+    
+    if (isInteractive) {
+      return; // Don't start swipe if touching an interactive element
+    }
+    
     setStartX(e.touches[0].clientX);
     setIsDragging(true);
   };
@@ -112,7 +129,7 @@ export const MobileSlider: React.FC<MobileSliderProps> = (props) => {
                 onShowPreview={props.onShowPreview}
                 onDownloadPDF={props.onDownloadPDF}
                 isDownloadingPDF={props.isDownloadingPDF}
-                isMobile={true}
+                isMobile={false}
               />
             </div>
             

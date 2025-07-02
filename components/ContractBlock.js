@@ -48,6 +48,7 @@ export default function ContractBlock({
           }`}
           data-index={whichSignature}
           data-party={signature?.party || "PartyA"}
+          data-signature-field="true"
           onClick={(e) => {
             e.stopPropagation();
             if (isCurrentParty) {
