@@ -243,7 +243,7 @@ export default function NewContractPage() {
           {/* Header */}
           <div className="mb-8">
             <Link
-              href="/dashboard"
+              href="/contracts"
               className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
             >
               ← Back to Dashboard
