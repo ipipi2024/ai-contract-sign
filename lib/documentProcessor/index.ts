@@ -3,9 +3,15 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
-// Configure PDF.js worker
+// Configure PDF.js worker based on environment
 if (typeof window !== 'undefined') {
+  // Browser environment
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+} else {
+  // Node.js/Server environment - disable worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  (pdfjsLib as any).GlobalWorkerOptions.isEvalSupported = false;
+  (pdfjsLib as any).GlobalWorkerOptions.disableWorker = true;
 }
 
 export interface DocumentElement {
@@ -122,157 +128,204 @@ export class DocumentProcessor {
 
   private async processPDF(file: File): Promise<ProcessedDocument> {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const elements: DocumentElement[] = [];
     
-    // Get page dimensions from first page
-    const firstPage = await pdf.getPage(1);
-    const viewport = firstPage.getViewport({ scale: 1.0 });
-    const pageSize = {
-      width: viewport.width,
-      height: viewport.height
+    // Configure loading options for server environment
+    const loadingOptions: any = {
+      data: arrayBuffer,
+      // Disable features that require DOM or workers in server environment
+      disableWorker: typeof window === 'undefined',
+      disableStream: typeof window === 'undefined',
+      disableAutoFetch: typeof window === 'undefined',
+      disableFontFace: typeof window === 'undefined',
+      isEvalSupported: typeof window !== 'undefined',
     };
     
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const viewport = page.getViewport({ scale: 1.0 });
+    try {
+      const pdf = await pdfjsLib.getDocument(loadingOptions).promise;
+      const elements: DocumentElement[] = [];
       
-      // Process each text item individually, preserving exact position
-      const items = textContent.items as TextItem[];
+      // Get page dimensions from first page
+      const firstPage = await pdf.getPage(1);
+      const viewport = firstPage.getViewport({ scale: 1.0 });
+      const pageSize = {
+        width: viewport.width,
+        height: viewport.height
+      };
       
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item.str || item.str.trim() === '') continue;
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const viewport = page.getViewport({ scale: 1.0 });
         
-        // Extract exact position from transform matrix
-        const x = item.transform[4];
-        const y = viewport.height - item.transform[5]; // Convert to top-down coordinates
-        const fontSize = Math.abs(item.transform[0]);
-        const width = item.width || (item.str.length * fontSize * 0.5);
-        const height = fontSize * 1.2;
+        // Process each text item individually, preserving exact position
+        const items = textContent.items as TextItem[];
         
-        // Check if this text contains a field
-        const fieldInfo = this.detectFieldInLine(item.str);
-        
-        if (fieldInfo && !fieldInfo.isValue) {
-          // Check if this is a complete field line or part of a larger text
-          const isCompleteField = this.isCompleteField(item.str, fieldInfo);
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item.str || item.str.trim() === '') continue;
           
-          if (isCompleteField) {
-            // Handle as a complete field
+          // Extract exact position from transform matrix
+          const x = item.transform[4];
+          const y = viewport.height - item.transform[5]; // Convert to top-down coordinates
+          const fontSize = Math.abs(item.transform[0]);
+          const width = item.width || (item.str.length * fontSize * 0.5);
+          const height = fontSize * 1.2;
+          
+          // Check if this text contains a field
+          const fieldInfo = this.detectFieldInLine(item.str);
+          
+          if (fieldInfo && !fieldInfo.isValue) {
+            // Check if this is a complete field line or part of a larger text
+            const isCompleteField = this.isCompleteField(item.str, fieldInfo);
+            
+            if (isCompleteField) {
+              // Handle as a complete field
+              const element: DocumentElement = {
+                type: 'field',
+                content: '',
+                formatting: {
+                  fontSize: fontSize,
+                  fontFamily: this.getFontFamily(item.fontName)
+                },
+                position: {
+                  x: x + (fieldInfo.offsetX || 0),
+                  y: y,
+                  width: this.getFieldWidth(fieldInfo.type),
+                  height: this.getFieldHeight(fieldInfo.type),
+                  page: pageNum
+                },
+                metadata: {
+                  fieldType: fieldInfo.type,
+                  fieldName: fieldInfo.name,
+                  required: fieldInfo.required,
+                  placeholder: fieldInfo.placeholder || fieldInfo.name,
+                  originalText: item.str
+                }
+              };
+              elements.push(element);
+            } else {
+              // Handle mixed text and field
+              const parts = this.splitTextByField(item.str, fieldInfo);
+              let currentX = x;
+              
+              for (const part of parts) {
+                if (part.isField) {
+                  elements.push({
+                    type: 'field',
+                    content: '',
+                    formatting: {
+                      fontSize: fontSize,
+                      fontFamily: this.getFontFamily(item.fontName)
+                    },
+                    position: {
+                      x: currentX,
+                      y: y,
+                      width: this.getFieldWidth(fieldInfo.type),
+                      height: this.getFieldHeight(fieldInfo.type),
+                      page: pageNum
+                    },
+                    metadata: {
+                      fieldType: fieldInfo.type,
+                      fieldName: fieldInfo.name,
+                      required: fieldInfo.required,
+                      placeholder: fieldInfo.placeholder || fieldInfo.name,
+                      originalText: part.text
+                    }
+                  });
+                  currentX += this.getFieldWidth(fieldInfo.type);
+                } else if (part.text.trim()) {
+                  // Add text before or after field
+                  const textWidth = part.text.length * fontSize * 0.5;
+                  elements.push({
+                    type: 'text',
+                    content: part.text,
+                    formatting: {
+                      fontSize: fontSize,
+                      fontFamily: this.getFontFamily(item.fontName),
+                      bold: item.fontName?.toLowerCase().includes('bold') || false,
+                      italic: item.fontName?.toLowerCase().includes('italic') || false,
+                      color: '#000000'
+                    },
+                    position: {
+                      x: currentX,
+                      y: y,
+                      width: textWidth,
+                      height: height,
+                      page: pageNum
+                    }
+                  });
+                  currentX += textWidth;
+                }
+              }
+            }
+          } else {
+            // Regular text - preserve exact position and formatting
             const element: DocumentElement = {
-              type: 'field',
-              content: '',
+              type: 'text',
+              content: item.str,
               formatting: {
                 fontSize: fontSize,
-                fontFamily: this.getFontFamily(item.fontName)
+                fontFamily: this.getFontFamily(item.fontName),
+                bold: item.fontName?.toLowerCase().includes('bold') || false,
+                italic: item.fontName?.toLowerCase().includes('italic') || false,
+                color: '#000000'
               },
               position: {
-                x: x + (fieldInfo.offsetX || 0),
+                x: x,
                 y: y,
-                width: this.getFieldWidth(fieldInfo.type),
-                height: this.getFieldHeight(fieldInfo.type),
+                width: width,
+                height: height,
                 page: pageNum
-              },
-              metadata: {
-                fieldType: fieldInfo.type,
-                fieldName: fieldInfo.name,
-                required: fieldInfo.required,
-                placeholder: fieldInfo.placeholder || fieldInfo.name,
-                originalText: item.str
               }
             };
             elements.push(element);
-          } else {
-            // Handle mixed text and field
-            const parts = this.splitTextByField(item.str, fieldInfo);
-            let currentX = x;
-            
-            for (const part of parts) {
-              if (part.isField) {
-                elements.push({
-                  type: 'field',
-                  content: '',
-                  formatting: {
-                    fontSize: fontSize,
-                    fontFamily: this.getFontFamily(item.fontName)
-                  },
-                  position: {
-                    x: currentX,
-                    y: y,
-                    width: this.getFieldWidth(fieldInfo.type),
-                    height: this.getFieldHeight(fieldInfo.type),
-                    page: pageNum
-                  },
-                  metadata: {
-                    fieldType: fieldInfo.type,
-                    fieldName: fieldInfo.name,
-                    required: fieldInfo.required,
-                    placeholder: fieldInfo.placeholder || fieldInfo.name,
-                    originalText: part.text
-                  }
-                });
-                currentX += this.getFieldWidth(fieldInfo.type);
-              } else if (part.text.trim()) {
-                // Add text before or after field
-                const textWidth = part.text.length * fontSize * 0.5;
-                elements.push({
-                  type: 'text',
-                  content: part.text,
-                  formatting: {
-                    fontSize: fontSize,
-                    fontFamily: this.getFontFamily(item.fontName),
-                    bold: item.fontName?.toLowerCase().includes('bold') || false,
-                    italic: item.fontName?.toLowerCase().includes('italic') || false,
-                    color: '#000000'
-                  },
-                  position: {
-                    x: currentX,
-                    y: y,
-                    width: textWidth,
-                    height: height,
-                    page: pageNum
-                  }
-                });
-                currentX += textWidth;
-              }
-            }
           }
-        } else {
-          // Regular text - preserve exact position and formatting
-          const element: DocumentElement = {
-            type: 'text',
-            content: item.str,
-            formatting: {
-              fontSize: fontSize,
-              fontFamily: this.getFontFamily(item.fontName),
-              bold: item.fontName?.toLowerCase().includes('bold') || false,
-              italic: item.fontName?.toLowerCase().includes('italic') || false,
-              color: '#000000'
-            },
-            position: {
-              x: x,
-              y: y,
-              width: width,
-              height: height,
-              page: pageNum
-            }
-          };
-          elements.push(element);
         }
+        
+        // Clean up page resources
+        page.cleanup();
       }
+      
+      return {
+        elements: elements,
+        pages: pdf.numPages,
+        originalFormat: 'pdf',
+        pageSize,
+        metadata: {
+          title: file.name
+        }
+      };
+    } catch (error) {
+      console.error('Error processing PDF with pdfjs-dist:', error);
+      // Fallback to pdf-lib for basic processing
+      return this.processPDFWithPdfLib(file, arrayBuffer);
     }
-    
-    return {
-      elements: elements,
-      pages: pdf.numPages,
-      originalFormat: 'pdf',
-      pageSize,
-      metadata: {
-        title: file.name
-      }
-    };
+  }
+
+  // Fallback method using pdf-lib
+  private async processPDFWithPdfLib(file: File, arrayBuffer: ArrayBuffer): Promise<ProcessedDocument> {
+    try {
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+      
+      const firstPage = pages[0];
+      const { width, height } = firstPage.getSize();
+      
+      return {
+        elements: [],
+        pages: pages.length,
+        originalFormat: 'pdf',
+        pageSize: { width, height },
+        metadata: {
+          title: pdfDoc.getTitle() || file.name,
+          author: pdfDoc.getAuthor(),
+          createdDate: pdfDoc.getCreationDate()
+        }
+      };
+    } catch (error) {
+      console.error('Error processing PDF with pdf-lib:', error);
+      throw new Error('Failed to process PDF document');
+    }
   }
 
   private detectFieldInLine(text: string): {
@@ -436,6 +489,53 @@ export class DocumentProcessor {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer });
     
+    // In server environment, we can't use DOMParser
+    if (typeof window === 'undefined') {
+      // Simple text extraction for server-side
+      const text = result.value.replace(/<[^>]*>/g, '\n').replace(/\n+/g, '\n').trim();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      const elements: DocumentElement[] = [];
+      let pageNum = 1;
+      let yPosition = 72;
+      const pageHeight = 1056;
+      const pageWidth = 816;
+      
+      for (const line of lines) {
+        if (yPosition + 20 > pageHeight - 72) {
+          pageNum++;
+          yPosition = 72;
+        }
+        
+        elements.push({
+          type: 'paragraph',
+          content: line,
+          formatting: {
+            fontSize: 12,
+            fontFamily: 'Arial'
+          },
+          position: {
+            x: 72,
+            y: yPosition,
+            width: pageWidth - 144,
+            height: 20,
+            page: pageNum
+          }
+        });
+        
+        yPosition += 25;
+      }
+      
+      return {
+        elements,
+        pages: pageNum,
+        originalFormat: 'docx',
+        pageSize: { width: pageWidth, height: pageHeight },
+        metadata: { title: file.name }
+      };
+    }
+    
+    // Browser environment - use DOMParser
     const parser = new DOMParser();
     const doc = parser.parseFromString(result.value, 'text/html');
     const elements: DocumentElement[] = [];
